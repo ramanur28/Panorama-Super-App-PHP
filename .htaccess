@@ -1,0 +1,63 @@
+# =========================================================================
+# PANORAMA SUPER APP - APACHE / LITESPEED / CPANEL CONFIGURATION
+# =========================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Clean API routing: /api/something -> api/something.php
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^api/([a-zA-Z0-9_-]+)/?$ api/$1.php [L,QSA]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^api/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_.-]+)/?$ api/$1.php?id=$2 [L,QSA]
+</IfModule>
+
+# PWA MIME Types
+<IfModule mod_mime.c>
+  AddType application/manifest+json .json .webmanifest
+  AddType application/javascript .js .mjs
+  AddType image/svg+xml .svg
+</IfModule>
+
+# Gzip Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/xml application/xhtml+xml application/rss+xml application/javascript application/x-javascript application/json
+</IfModule>
+
+# Caching Headers
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpg "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/gif "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType text/css "access plus 1 day"
+  ExpiresByType application/javascript "access plus 1 day"
+  ExpiresByType application/manifest+json "access plus 0 seconds"
+</IfModule>
+
+# STRICT NO-CACHE FOR SERVICE WORKER, MANIFEST, AND INDEX
+# Menjamin browser mobile selalu memeriksa versi terbaru langsung ke server
+<FilesMatch "^(sw\.js|manifest\.json|index\.php)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </IfModule>
+</FilesMatch>
+
+# Security Headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Disable Directory Listing
+Options -Indexes

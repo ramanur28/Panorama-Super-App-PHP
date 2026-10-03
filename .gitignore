@@ -1,0 +1,37 @@
+# Windows & NTFS alternate data streams
+*:Zone.Identifier
+*Zone.Identifier*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Environment & Local Configuration
+.env
+.env.local
+.env.*.local
+config.local.php
+
+# Logs & Temporary Files
+*.log
+error_log
+tmp/
+temp/
