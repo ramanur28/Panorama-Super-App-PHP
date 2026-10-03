@@ -1942,6 +1942,11 @@ const App = {
     const fieldDrivers = AppState.workers.filter(w => w.role === 'driver_lapangan');
     const photographers = AppState.workers.filter(w => w.role === 'photographer');
 
+    let selectedTplId = editTrip ? (editTrip.itineraryTemplateId || '') : (AppState.templates[0]?.id || '');
+    const currentTpl = AppState.templates.find(t => t.id === selectedTplId);
+    const defaultTourPackage = editTrip?.tourPackage || (currentTpl ? currentTpl.name : 'Paket Bromo Sunrise');
+    const defaultPackagePrice = editTrip?.packagePrice ?? (currentTpl ? currentTpl.defaultPrice : 1750000);
+
     modalRoot.innerHTML = `
       <div class="modal-overlay">
         <div class="modal-content" style="max-width: 680px;">
@@ -1969,16 +1974,7 @@ const App = {
                 </div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Pilihan Paket Wisata:</label>
-                <select id="trip-template-id" class="form-select" onchange="App.onTemplateSelected(this.value)">
-                  ${AppState.templates.map(tpl => `
-                    <option value="${tpl.id}" data-price="${tpl.defaultPrice}" data-name="${tpl.name}" ${editTrip?.itineraryTemplateId === tpl.id ? 'selected' : ''}>
-                      ${tpl.name} - ${formatIDR(tpl.defaultPrice)}
-                    </option>
-                  `).join('')}
-                </select>
-              </div>
+
 
               <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
                 <div class="form-group">
@@ -2018,6 +2014,112 @@ const App = {
                 <input type="text" id="trip-notes" class="form-input" placeholder="Contoh: Bawa jaket ekstra, permintaan spot khusus" value="${editTrip?.notes || ''}" />
               </div>
 
+              <!-- Section: Paket Wisata & Rute Itinerary Builder -->
+              <div style="background: #f8fafc; border: 1px solid var(--border-glass); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                  <div style="font-weight: 800; font-size: 14px; color: #0f172a; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                      ${Icons.mapPin(16, '#059669')} <span>Paket Wisata & Rute Itinerary:</span>
+                    </span>
+                    <span class="badge" id="trip-modal-stops-count-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 11px;">0 Spot</span>
+                  </div>
+                  <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                    Pilih preset template atau susun rute mandiri. Perubahan rute di bawah <strong>hanya berlaku untuk trip ini</strong> dan tidak mengubah template master.
+                  </div>
+                </div>
+
+                <!-- Template Selector & Terapkan Preset -->
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 11px; font-weight: 700;">Gunakan Preset Template Itinerary:</label>
+                    <select id="trip-template-id" class="form-select" onchange="App.onTripTemplateDropdownChange(this.value)">
+                      <option value="">-- Buat / Kustom Rute Mandiri (Tanpa Template) --</option>
+                      ${AppState.templates.map(tpl => `
+                        <option value="${tpl.id}" data-price="${tpl.defaultPrice}" data-name="${tpl.name}" ${selectedTplId === tpl.id ? 'selected' : ''}>
+                          ${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})
+                        </option>
+                      `).join('')}
+                    </select>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" style="height: 38px; display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; color: #0284c7; border-color: #bae6fd; background: #ffffff;" onclick="App.applySelectedTemplateToTrip()">
+                    ${Icons.refreshCw(13)} <span>Terapkan Preset</span>
+                  </button>
+                </div>
+
+                <!-- Nama Paket Wisata -->
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-size: 11px; font-weight: 700;">Nama Paket / Rute Wisata:*</label>
+                  <input type="text" id="trip-tour-package" class="form-input" placeholder="Contoh: Paket Bromo Sunrise Hemat 4 Spot" value="${defaultTourPackage}" required />
+                </div>
+
+                <!-- Stops Table / List -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 12px; font-weight: 700; color: #334155;">Daftar Spot Kunjungan Trip:</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-size: 11px; color: #64748b;">
+                        Estimasi Tiket/Ops Spot: <strong id="trip-modal-stops-total-cost" style="color: #dc2626;">Rp 0</strong>
+                      </span>
+                      <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 3px 8px; color: #059669; border-color: #a7f3d0; background: #ffffff;" onclick="App.addTripModalStopRow()">
+                        ${Icons.plus(12)} <span>Tambah Spot</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="trip-modal-stops-container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Rows populated dynamically -->
+                  </div>
+
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; flex-wrap: wrap; gap: 6px;">
+                    <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 4px 10px; color: #0284c7; border-color: #bae6fd; background: #ffffff;" onclick="App.syncStopsCostToTripOperationalCost()">
+                      ${Icons.refreshCw(11)} Salin Total Spot ke "Biaya Operasional Langsung"
+                    </button>
+                    <span style="font-size: 10px; color: #94a3b8; font-style: italic;">
+                      *Bebas edit jam, nama spot, atau hapus titik kunjungan.
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Opsi Simpan sebagai Template Baru di Master Data -->
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
+                  <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; user-select: none; margin-bottom: 0;">
+                    <input type="checkbox" id="chk-save-as-template" onchange="App.toggleSaveAsTemplateFields(this.checked)" style="margin-top: 3px; accent-color: #059669; width: 16px; height: 16px;" />
+                    <div>
+                      <div style="font-weight: 700; font-size: 12px; color: #166534;">Simpan susunan rute ini sebagai Template Baru di Master Data</div>
+                      <div style="font-size: 11px; color: #15803d; line-height: 1.3; margin-top: 1px;">
+                        Rute ini akan didaftarkan sebagai preset baru. <strong>Template master yang ada tidak akan pernah tertimpa atau terubah.</strong>
+                      </div>
+                    </div>
+                  </label>
+
+                  <div id="save-as-template-fields" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #86efac; flex-direction: column; gap: 8px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Nama Template Baru:*</label>
+                      <input type="text" id="new-template-name" class="form-input" style="font-size: 12px; padding: 6px 10px; background: #ffffff;" placeholder="Contoh: Paket Bromo Sunrise + Coban Pelangi" />
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <div>
+                        <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Kategori Template:</label>
+                        <select id="new-template-category" class="form-select" style="font-size: 12px; padding: 6px 10px; background: #ffffff;">
+                          <option value="bromo_sunrise">Bromo Sunrise</option>
+                          <option value="milky_way">Milky Way Malam</option>
+                          <option value="custom_trip">Custom Trip</option>
+                          <option value="open_trip">Open Trip</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Estimasi Durasi:</label>
+                        <input type="text" id="new-template-duration" class="form-input" style="font-size: 12px; padding: 6px 10px; background: #ffffff;" value="12 Jam" placeholder="Contoh: 12 Jam / 2 Hari 1 Malam" />
+                      </div>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Deskripsi Singkat Template:</label>
+                      <input type="text" id="new-template-description" class="form-input" style="font-size: 12px; padding: 6px 10px; background: #ffffff;" placeholder="Deskripsi keunggulan rute untuk referensi tim" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Crew Assignment Section with Dynamic Details & Status -->
               <div style="background: #f8fafc; border: 1px solid var(--border-glass); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
                 <div>
@@ -2055,7 +2157,7 @@ const App = {
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                   <label class="form-label">Harga Paket Jual (IDR):</label>
-                  <input type="number" id="trip-package-price" class="form-input" value="${editTrip?.packagePrice || 1750000}" required />
+                  <input type="number" id="trip-package-price" class="form-input" value="${defaultPackagePrice}" required />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Biaya Langsung TNBTS / Tiket (IDR):</label>
@@ -2401,6 +2503,27 @@ const App = {
     // Initial render
     updateAllCrewAndFinancials();
 
+    // Initial populate of itinerary stops
+    const stopsContainer = document.getElementById('trip-modal-stops-container');
+    if (stopsContainer) {
+      stopsContainer.innerHTML = '';
+      let initialStops = [];
+      if (editTrip && Array.isArray(editTrip.itinerary) && editTrip.itinerary.length > 0) {
+        initialStops = editTrip.itinerary;
+      } else if (currentTpl && Array.isArray(currentTpl.items) && currentTpl.items.length > 0) {
+        initialStops = currentTpl.items;
+      } else {
+        initialStops = [
+          { time: '02:00', title: 'Penjemputan Tamu', operationalCost: 0, description: 'Titik jemput hotel / meeting point' },
+          { time: '04:00', title: 'Sunrise Point Penanjakan 1', operationalCost: 35000, description: 'Melihat matahari terbit Bromo' },
+          { time: '06:30', title: 'Kawah Bromo & Pura Luhur Poten', operationalCost: 0, description: 'Eksplorasi kaldera & kawah aktif' },
+          { time: '08:30', title: 'Pasir Berbisik & Bukit Teletubbies', operationalCost: 0, description: 'Sesi foto di savana hijau' },
+          { time: '11:00', title: 'Pengantaran Kembali (Drop-off)', operationalCost: 0, description: 'Trip selesai kembali ke titik asal' }
+        ];
+      }
+      initialStops.forEach(stop => App.addTripModalStopRow(stop));
+    }
+
     // Event Listeners for Date, Slot & Crew changes
     document.getElementById('trip-date')?.addEventListener('change', updateAllCrewAndFinancials);
     document.getElementById('trip-time-slot')?.addEventListener('change', updateAllCrewAndFinancials);
@@ -2452,10 +2575,66 @@ const App = {
       const packagePrice = parseFloat(document.getElementById('trip-package-price').value) || 0;
       const operationalCost = parseFloat(document.getElementById('trip-operational-cost').value) || 0;
 
-      const tplSelect = document.getElementById('trip-template-id');
-      const selectedTplOption = tplSelect.options[tplSelect.selectedIndex];
-      const templateId = tplSelect.value;
-      const tourPackage = selectedTplOption.getAttribute('data-name');
+      // Collect stops from Itinerary Builder
+      const stopRows = document.querySelectorAll('#trip-modal-stops-container .trip-stop-row');
+      const itinerary = [];
+      stopRows.forEach((row, idx) => {
+        const title = row.querySelector('.trip-stop-title')?.value.trim();
+        if (title) {
+          itinerary.push({
+            id: 'stop-' + Date.now() + '-' + (idx + 1),
+            time: row.querySelector('.trip-stop-time')?.value.trim() || '',
+            title: title,
+            location: 'Spot Wisata Bromo',
+            description: row.querySelector('.trip-stop-desc')?.value.trim() || '',
+            operationalCost: parseFloat(row.querySelector('.trip-stop-cost')?.value) || 0
+          });
+        }
+      });
+
+      const tourPackage = document.getElementById('trip-tour-package')?.value.trim() || 'Paket Bromo Tour';
+      let templateId = document.getElementById('trip-template-id')?.value || null;
+
+      // Handle Save as New Template in Master Data
+      const saveAsNewTemplate = document.getElementById('chk-save-as-template')?.checked;
+      if (saveAsNewTemplate) {
+        const newTplName = document.getElementById('new-template-name')?.value.trim();
+        if (!newTplName) {
+          showToast('warning', 'Validasi Template Baru', 'Silakan isi Nama Template Baru yang ingin disimpan.');
+          document.getElementById('new-template-name')?.focus();
+          saveBtn.disabled = false;
+          return;
+        }
+
+        if (itinerary.length === 0) {
+          showToast('warning', 'Rute Masih Kosong', 'Tambahkan minimal 1 spot pada rute sebelum menyimpannya sebagai template.');
+          saveBtn.disabled = false;
+          return;
+        }
+
+        const newCategory = document.getElementById('new-template-category')?.value || 'bromo_sunrise';
+        const newDuration = document.getElementById('new-template-duration')?.value.trim() || '12 Jam';
+        const newDescription = document.getElementById('new-template-description')?.value.trim() || ('Dibuat dari rute trip ' + (editTrip ? editTrip.code : 'baru'));
+
+        // STRICT PROTECTION: Calls API.saveTemplate without an ID -> triggers CREATE (POST), NEVER overwriting existing templates!
+        const tplRes = await API.saveTemplate({
+          name: newTplName,
+          category: newCategory,
+          duration: newDuration,
+          description: newDescription,
+          defaultPrice: packagePrice,
+          items: itinerary
+        });
+
+        if (tplRes.success) {
+          AppState.templates = await API.getTemplates();
+          if (tplRes.template && tplRes.template.id) {
+            templateId = tplRes.template.id;
+          }
+        } else {
+          showToast('warning', 'Peringatan Template', 'Trip akan tetap disimpan, namun template baru gagal dibuat: ' + tplRes.message);
+        }
+      }
 
       const agencySelect = document.getElementById('trip-agency-id');
       const agencyOption = agencySelect.options[agencySelect.selectedIndex];
@@ -2511,14 +2690,7 @@ const App = {
         }
       }
 
-      // Default Itinerary dari Template jika baru
-      const itinerary = editTrip?.itinerary || [
-        { id: 'it-1', time: '02:00', title: 'Penjemputan Tamu', location: pickupPoint, description: 'Titik jemput utama' },
-        { id: 'it-2', time: '04:00', title: 'Sunrise Point Penanjakan 1', location: 'Penanjakan 1 Bromo', description: 'Spot melihat matahari terbit' },
-        { id: 'it-3', time: '06:30', title: 'Kawah Bromo & Pura Luhur Poten', location: 'Lautan Pasir Bromo', description: 'Eksplorasi kawah aktif' },
-        { id: 'it-4', time: '08:30', title: 'Pasir Berbisik & Bukit Teletubbies', location: 'Savana Bromo', description: 'Sesi foto padang savana hijau' },
-        { id: 'it-5', time: '11:00', title: 'Pengantaran Kembali (Drop-off)', location: pickupPoint, description: 'Trip selesai' }
-      ];
+
 
       const agencyPaymentStatus = document.getElementById('trip-payment-status')?.value || 'unpaid';
       let depositAmount = 0;
@@ -2551,7 +2723,11 @@ const App = {
       saveBtn.disabled = false;
       if (res.success) {
         closeModal();
-        showToast('success', editTrip ? 'Trip Diperbarui' : 'Trip Ditambahkan', 'Data tersimpan ke MySQL.');
+        showToast(
+          'success',
+          editTrip ? 'Trip Diperbarui' : 'Trip Ditambahkan',
+          saveAsNewTemplate ? 'Data trip dan Template Baru berhasil disimpan ke Master Data!' : 'Data perjalanan berhasil disimpan ke MySQL.'
+        );
         await App.loadInitialData();
         App.render();
       } else {
@@ -2560,12 +2736,151 @@ const App = {
     };
   },
   onTemplateSelected(tplId) {
+    this.onTripTemplateDropdownChange(tplId);
+  },
+
+  onTripTemplateDropdownChange(tplId) {
+    if (!tplId) {
+      showToast('info', 'Mode Mandiri', 'Rute kustom mandiri aktif. Anda bebas menyusun titik rute secara manual.');
+      return;
+    }
+    this.applySelectedTemplateToTrip(false);
+  },
+
+  applySelectedTemplateToTrip(showAlert = true) {
+    const select = document.getElementById('trip-template-id');
+    const tplId = select ? select.value : '';
+    if (!tplId) {
+      showToast('warning', 'Pilih Template', 'Silakan pilih salah satu preset template pada dropdown terlebih dahulu.');
+      return;
+    }
     const tpl = AppState.templates.find(t => t.id === tplId);
-    if (tpl) {
-      const priceInput = document.getElementById('trip-package-price');
-      if (priceInput) {
-        priceInput.value = tpl.defaultPrice;
-        priceInput.dispatchEvent(new Event('input'));
+    if (!tpl) return;
+
+    // Update package name input
+    const tourPkgInput = document.getElementById('trip-tour-package');
+    if (tourPkgInput) tourPkgInput.value = tpl.name;
+
+    // Update price if default or empty
+    const priceInput = document.getElementById('trip-package-price');
+    if (priceInput && (!priceInput.value || parseFloat(priceInput.value) === 0 || parseFloat(priceInput.value) === 1750000)) {
+      priceInput.value = tpl.defaultPrice;
+      priceInput.dispatchEvent(new Event('input'));
+    }
+
+    // Populate stops from template items
+    const container = document.getElementById('trip-modal-stops-container');
+    if (container) {
+      container.innerHTML = '';
+      if (Array.isArray(tpl.items) && tpl.items.length > 0) {
+        tpl.items.forEach(stop => App.addTripModalStopRow(stop));
+      } else {
+        App.addTripModalStopRow({ title: 'Spot Kunjungan Utama', time: '04:00', operationalCost: 0, description: '' });
+      }
+    }
+
+    if (showAlert) {
+      showToast('success', 'Preset Diterapkan', `Rute dari "${tpl.name}" berhasil diterapkan. Template master aman dan tidak akan terubah.`);
+    }
+  },
+
+  addTripModalStopRow(stop = null) {
+    const container = document.getElementById('trip-modal-stops-container');
+    if (!container) return;
+    const index = container.children.length;
+    const div = document.createElement('div');
+    div.className = 'trip-stop-row';
+    div.style = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);';
+
+    const safeTitle = (stop?.title || '').replace(/"/g, '&quot;');
+    const safeTime = (stop?.time || '').replace(/"/g, '&quot;');
+    const safeDesc = (stop?.description || '').replace(/"/g, '&quot;');
+    const safeCost = stop?.operationalCost ?? 0;
+
+    div.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="trip-stop-badge badge" style="background: #e0f2fe; color: #0284c7; font-size: 10px; font-weight: 800; padding: 2px 6px;">Spot #${index + 1}</span>
+        <button type="button" class="btn btn-outline btn-sm text-red" style="padding: 2px 6px; font-size: 10px; color: #dc2626; border-color: #fecaca;" onclick="App.removeTripModalStopRow(this)">
+          ${Icons.trash(12)} <span>Hapus</span>
+        </button>
+      </div>
+      <div class="trip-stop-grid">
+        <div>
+          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Waktu / Jam:</label>
+          <input type="text" class="form-input trip-stop-time" placeholder="04:00 WIB" value="${safeTime}" style="font-size: 12px; padding: 5px 8px;" />
+        </div>
+        <div>
+          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Nama Titik / Spot Wisata:*</label>
+          <input type="text" class="form-input trip-stop-title" placeholder="Nama Spot (cth: Penanjakan 1 Bromo)" value="${safeTitle}" style="font-size: 12px; padding: 5px 8px;" required />
+        </div>
+        <div>
+          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Tiket/Ops (IDR):</label>
+          <input type="number" class="form-input trip-stop-cost" placeholder="0" min="0" step="1000" value="${safeCost}" style="font-size: 12px; padding: 5px 8px;" oninput="App.updateTripModalStopsTotalCost()" />
+        </div>
+      </div>
+      <div>
+        <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Aktivitas / Catatan Spot:</label>
+        <input type="text" class="form-input trip-stop-desc" placeholder="Contoh: Spot foto matahari terbit & view Gunung Semeru" value="${safeDesc}" style="font-size: 12px; padding: 5px 8px;" />
+      </div>
+    `;
+    container.appendChild(div);
+    App.updateTripModalStopsTotalCost();
+  },
+
+  removeTripModalStopRow(btn) {
+    const row = btn.closest('.trip-stop-row');
+    if (row) {
+      row.remove();
+      const container = document.getElementById('trip-modal-stops-container');
+      if (container) {
+        container.querySelectorAll('.trip-stop-row').forEach((r, idx) => {
+          const badge = r.querySelector('.trip-stop-badge');
+          if (badge) badge.textContent = `Spot #${idx + 1}`;
+        });
+      }
+      App.updateTripModalStopsTotalCost();
+    }
+  },
+
+  updateTripModalStopsTotalCost() {
+    let total = 0;
+    const rows = document.querySelectorAll('#trip-modal-stops-container .trip-stop-row');
+    rows.forEach(r => {
+      const costInput = r.querySelector('.trip-stop-cost');
+      total += parseFloat(costInput?.value) || 0;
+    });
+
+    const costBadge = document.getElementById('trip-modal-stops-total-cost');
+    if (costBadge) {
+      costBadge.textContent = formatIDR(total);
+    }
+    const countBadge = document.getElementById('trip-modal-stops-count-badge');
+    if (countBadge) {
+      countBadge.textContent = `${rows.length} Spot`;
+    }
+    return total;
+  },
+
+  syncStopsCostToTripOperationalCost() {
+    const total = App.updateTripModalStopsTotalCost();
+    const opInput = document.getElementById('trip-operational-cost');
+    if (opInput) {
+      opInput.value = total;
+      opInput.dispatchEvent(new Event('input'));
+      showToast('info', 'Biaya Disinkronkan', `Biaya operasional langsung disinkronkan ke ${formatIDR(total)}.`);
+    }
+  },
+
+  toggleSaveAsTemplateFields(checked) {
+    const box = document.getElementById('save-as-template-fields');
+    if (box) {
+      box.style.display = checked ? 'flex' : 'none';
+    }
+    if (checked) {
+      const nameInput = document.getElementById('new-template-name');
+      const tourPkg = document.getElementById('trip-tour-package')?.value.trim() || '';
+      if (nameInput && !nameInput.value) {
+        nameInput.value = tourPkg ? `${tourPkg} (Kustom)` : '';
       }
     }
   },

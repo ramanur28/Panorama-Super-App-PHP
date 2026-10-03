@@ -1,5 +1,5 @@
 // Panorama Super App - Service Worker (Optimized for Instant Updates)
-const CACHE_VERSION = '2026.10.03.v2';
+const CACHE_VERSION = '2026.10.03.v3';
 const CACHE_STATIC = `panorama-static-${CACHE_VERSION}`;
 const CACHE_DYNAMIC = `panorama-dynamic-${CACHE_VERSION}`;
 
