@@ -2969,11 +2969,15 @@ const App = {
     const container = document.createElement('div');
     container.id = 'itinerary-builder-modal-container';
     container.className = 'sub-modal-overlay';
+    container.onclick = (e) => {
+      if (e.target === container) {
+        App.closeItineraryBuilderModal();
+      }
+    };
     document.body.appendChild(container);
 
     container.innerHTML = `
-      <div class="modal-overlay" style="z-index: 1201; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px);">
-        <div class="modal-content" style="max-width: 860px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-content" style="max-width: 860px; max-height: 90vh; display: flex; flex-direction: column;">
           <!-- Modal Header -->
           <div class="modal-header" style="padding: 14px 18px; border-bottom: 1px solid var(--border-glass);">
             <div>
@@ -3142,7 +3146,6 @@ const App = {
             </button>
           </div>
         </div>
-      </div>
     `;
 
     App.renderBuilderDayTabs();
