@@ -92,10 +92,14 @@ function map_trip_row(array $r, ?string $viewerRole = null, ?string $viewerId = 
         $sanitizedItinerary = array_map(function($item) {
             return [
                 'id' => $item['id'] ?? '',
+                'day' => (int)($item['day'] ?? 1),
+                'dayTitle' => $item['dayTitle'] ?? ('Hari ' . ($item['day'] ?? 1)),
                 'time' => $item['time'] ?? '',
                 'title' => $item['title'] ?? '',
-                'location' => $item['location'] ?? '',
+                'location' => $item['location'] ?? 'Spot Wisata Bromo',
                 'description' => $item['description'] ?? '',
+                'notes' => $item['notes'] ?? '',
+                'operationalDesc' => $item['operationalDesc'] ?? ''
             ];
         }, $parsedItinerary);
     } else {

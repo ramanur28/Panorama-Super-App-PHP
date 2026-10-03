@@ -78,8 +78,8 @@ if ($method === 'GET' && $tripId) {
     if (!$r) {
         json_response(['success' => false, 'message' => 'Trip tidak ditemukan'], 404);
     }
-    $role = $currentUser['role'] ?? null;
-    $workerId = $currentUser['id'] ?? null;
+    $role = $_GET['role'] ?? ($currentUser['role'] ?? null);
+    $workerId = $_GET['workerId'] ?? $_GET['userId'] ?? ($currentUser['id'] ?? null);
     json_response(['success' => true, 'trip' => map_trip_row($r, $role, $workerId)]);
 }
 

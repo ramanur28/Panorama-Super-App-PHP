@@ -17,20 +17,34 @@ $templateId = $_GET['id'] ?? '';
 $action = $_GET['action'] ?? '';
 
 // Helper function to fetch single template with its stops
+function parse_stop_row(array $s): array {
+    $desc = $s['activity_description'] ?? '';
+    $extra = [];
+    if (!empty($desc) && ($desc[0] === '{' || $desc[0] === '[')) {
+        $json = json_decode($desc, true);
+        if (is_array($json)) $extra = $json;
+    }
+    return [
+        'id' => $s['id'],
+        'day' => (int)($extra['day'] ?? 1),
+        'dayTitle' => $extra['dayTitle'] ?? ('Hari ' . ($extra['day'] ?? 1)),
+        'time' => $s['time_estimate'],
+        'title' => $s['title'],
+        'location' => $extra['location'] ?? 'Spot Wisata Bromo',
+        'operationalDesc' => $extra['operationalDesc'] ?? '',
+        'operationalCost' => (float)$s['operational_fee'],
+        'ticketCost' => (float)($extra['ticketCost'] ?? 0),
+        'hotelCost' => (float)($extra['hotelCost'] ?? 0),
+        'notes' => $extra['notes'] ?? (!empty($extra) ? '' : $desc),
+        'description' => $desc
+    ];
+}
+
 function get_full_template(string $id): ?array {
     $t = db_query_one("SELECT * FROM itinerary_templates WHERE id = ?", [$id]);
     if (!$t) return null;
     $stops = db_query("SELECT * FROM itinerary_stops WHERE template_id = ? ORDER BY order_index ASC", [$id]);
-    $items = array_map(function($s) {
-        return [
-            'id' => $s['id'],
-            'time' => $s['time_estimate'],
-            'title' => $s['title'],
-            'location' => 'Spot Wisata Bromo',
-            'description' => $s['activity_description'] ?? '',
-            'operationalCost' => (float)$s['operational_fee']
-        ];
-    }, $stops);
+    $items = array_map('parse_stop_row', $stops);
 
     return [
         'id' => $t['id'],
@@ -60,14 +74,7 @@ if ($method === 'GET') {
     foreach ($stops as $s) {
         $tId = $s['template_id'];
         if (!isset($stopsByTemplate[$tId])) $stopsByTemplate[$tId] = [];
-        $stopsByTemplate[$tId][] = [
-            'id' => $s['id'],
-            'time' => $s['time_estimate'],
-            'title' => $s['title'],
-            'location' => 'Spot Wisata Bromo',
-            'description' => $s['activity_description'] ?? '',
-            'operationalCost' => (float)$s['operational_fee']
-        ];
+        $stopsByTemplate[$tId][] = parse_stop_row($s);
     }
 
     $result = array_map(function($t) use ($stopsByTemplate) {
@@ -124,7 +131,15 @@ if ($method === 'POST' && empty($action) && empty($templateId)) {
                 $stopTitle = trim($item['title'] ?? '');
                 if (!$stopTitle) continue;
                 $stopTime = trim($item['time'] ?? $item['time_estimate'] ?? '');
-                $stopDesc = trim($item['description'] ?? $item['activity_description'] ?? '');
+                $extraData = [
+                    'day' => (int)($item['day'] ?? 1),
+                    'dayTitle' => trim($item['dayTitle'] ?? ('Hari ' . ($item['day'] ?? 1))),
+                    'operationalDesc' => trim($item['operationalDesc'] ?? ''),
+                    'ticketCost' => (float)($item['ticketCost'] ?? 0),
+                    'hotelCost' => (float)($item['hotelCost'] ?? 0),
+                    'notes' => trim($item['notes'] ?? $item['description'] ?? '')
+                ];
+                $stopDesc = json_encode($extraData, JSON_UNESCAPED_UNICODE);
                 $stopCost = (float)($item['operationalCost'] ?? $item['operational_fee'] ?? 0);
                 $stopId = 'stop-' . $newId . '-' . $order;
 
@@ -189,7 +204,15 @@ if ($method === 'PUT' || ($method === 'POST' && $action === 'update')) {
                 $stopTitle = trim($item['title'] ?? '');
                 if (!$stopTitle) continue;
                 $stopTime = trim($item['time'] ?? $item['time_estimate'] ?? '');
-                $stopDesc = trim($item['description'] ?? $item['activity_description'] ?? '');
+                $extraData = [
+                    'day' => (int)($item['day'] ?? 1),
+                    'dayTitle' => trim($item['dayTitle'] ?? ('Hari ' . ($item['day'] ?? 1))),
+                    'operationalDesc' => trim($item['operationalDesc'] ?? ''),
+                    'ticketCost' => (float)($item['ticketCost'] ?? 0),
+                    'hotelCost' => (float)($item['hotelCost'] ?? 0),
+                    'notes' => trim($item['notes'] ?? $item['description'] ?? '')
+                ];
+                $stopDesc = json_encode($extraData, JSON_UNESCAPED_UNICODE);
                 $stopCost = (float)($item['operationalCost'] ?? $item['operational_fee'] ?? 0);
                 $stopId = 'stop-' . $id . '-' . $order . '-' . mt_rand(10, 99);
 

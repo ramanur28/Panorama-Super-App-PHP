@@ -1860,21 +1860,61 @@ const App = {
               </div>
             ` : ''}
 
-            <!-- Itinerary Stops -->
+            <!-- Itinerary Stops Grouped by Day -->
             <div>
-              <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-bottom: 6px;">Rute & Spot Kunjungan (Itinerary):</div>
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                ${(!trip.itinerary || trip.itinerary.length === 0) ? '<div style="color: #94a3b8; font-size: 12px;">Tidak ada rincian spot khusus.</div>' :
-                  trip.itinerary.map((s, idx) => `
-                    <div style="display: flex; gap: 10px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px;">
-                      <div style="font-weight: 800; color: #059669; width: 20px;">${idx + 1}.</div>
-                      <div style="flex: 1;">
-                        <div style="font-weight: 700; color: #0f172a;">${s.title} &bull; <span style="color: #64748b;">${s.time || ''}</span></div>
-                        <div style="color: #64748b; font-size: 11px;">${s.location || ''} ${s.description ? '&bull; ' + s.description : ''}</div>
+              <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Rute & Aktivitas Kunjungan (Itinerary):</span>
+                <span class="badge" style="background: #e0f2fe; color: #0284c7; font-size: 11px;">${(trip.itinerary || []).length} Kegiatan</span>
+              </div>
+              <div>
+                ${(() => {
+                  if (!trip.itinerary || trip.itinerary.length === 0) {
+                    return '<div style="color: #94a3b8; font-size: 12px; font-style: italic; padding: 8px 12px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">Tidak ada rincian aktivitas khusus.</div>';
+                  }
+                  const dayMap = {};
+                  trip.itinerary.forEach((s, idx) => {
+                    const dayNum = s.day || 1;
+                    if (!dayMap[dayNum]) {
+                      dayMap[dayNum] = {
+                        day: dayNum,
+                        title: s.dayTitle || `Hari ${dayNum}`,
+                        items: []
+                      };
+                    }
+                    dayMap[dayNum].items.push({ ...s, originalIdx: idx + 1 });
+                  });
+
+                  return Object.values(dayMap).map(grp => `
+                    <div class="day-group-card">
+                      <div class="day-group-header">
+                        <span>📅 ${grp.title}</span>
+                        <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px;">${grp.items.length} Kegiatan</span>
+                      </div>
+                      <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
+                        ${grp.items.map((s, itemIdx) => `
+                          <div style="display: flex; gap: 8px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px;">
+                            <div style="font-weight: 800; color: #059669; width: 18px;">${itemIdx + 1}.</div>
+                            <div style="flex: 1;">
+                              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap;">
+                                <strong style="color: #0f172a; font-size: 12px;">${s.title}</strong>
+                                ${s.time ? `<span class="badge" style="background: #f1f5f9; color: #475569; font-size: 10px; font-weight: 700;">⏰ ${s.time}</span>` : ''}
+                              </div>
+                              ${s.operationalDesc ? `<div style="color: #475569; font-size: 11px; margin-top: 2px;">🔧 <em>Operasional:</em> ${s.operationalDesc}</div>` : ''}
+                              ${s.notes ? `<div style="color: #64748b; font-size: 11px; margin-top: 2px;">📝 <strong>Catatan:</strong> ${s.notes}</div>` : ''}
+                              ${isAdmin ? `
+                                <div style="display: flex; gap: 10px; margin-top: 4px; font-size: 10px; color: #64748b; flex-wrap: wrap; background: #ffffff; padding: 3px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                  <span>Ops: <strong style="color: #dc2626;">${formatIDR(s.operationalCost || 0)}</strong></span>
+                                  <span>Tiket: <strong style="color: #ea580c;">${formatIDR(s.ticketCost || 0)}</strong></span>
+                                  <span>Hotel: <strong style="color: #7c3aed;">${formatIDR(s.hotelCost || 0)}</strong></span>
+                                </div>
+                              ` : ''}
+                            </div>
+                          </div>
+                        `).join('')}
                       </div>
                     </div>
-                  `).join('')
-                }
+                  `).join('');
+                })()}
               </div>
             </div>
 
@@ -1947,6 +1987,21 @@ const App = {
     const defaultTourPackage = editTrip?.tourPackage || (currentTpl ? currentTpl.name : 'Paket Bromo Sunrise');
     const defaultPackagePrice = editTrip?.packagePrice ?? (currentTpl ? currentTpl.defaultPrice : 1750000);
 
+    // Initialize in-memory current trip itinerary
+    App._currentTripItinerary = editTrip?.itinerary && Array.isArray(editTrip.itinerary) && editTrip.itinerary.length > 0 
+      ? JSON.parse(JSON.stringify(editTrip.itinerary)) 
+      : (currentTpl?.items && currentTpl.items.length > 0 
+          ? JSON.parse(JSON.stringify(currentTpl.items)) 
+          : [
+              { id: 'act-1', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '02:00 WIB', title: 'Penjemputan Tamu', operationalDesc: 'Shuttle Armada', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Titik jemput hotel / meeting point' },
+              { id: 'act-2', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '04:00 WIB', title: 'Sunrise Point Penanjakan 1', operationalDesc: 'Jeep Hardtop 4x4', operationalCost: 150000, ticketCost: 35000, hotelCost: 0, notes: 'Spot view matahari terbit Bromo' },
+              { id: 'act-3', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '06:30 WIB', title: 'Kawah Bromo & Pura Luhur Poten', operationalDesc: 'Lautan Pasir Bromo', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Eksplorasi kaldera aktif' },
+              { id: 'act-4', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '08:30 WIB', title: 'Pasir Berbisik & Bukit Teletubbies', operationalDesc: 'Padang Savana', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Sesi dokumentasi foto' },
+              { id: 'act-5', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '11:00 WIB', title: 'Drop-off Kembali', operationalDesc: 'Shuttle drop-off', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Trip selesai kembali ke titik asal' }
+            ]
+        );
+    App._currentTripDuration = currentTpl?.duration || (editTrip ? '12 Jam' : '12 Jam');
+
     modalRoot.innerHTML = `
       <div class="modal-overlay">
         <div class="modal-content" style="max-width: 680px;">
@@ -2014,110 +2069,44 @@ const App = {
                 <input type="text" id="trip-notes" class="form-input" placeholder="Contoh: Bawa jaket ekstra, permintaan spot khusus" value="${editTrip?.notes || ''}" />
               </div>
 
-              <!-- Section: Paket Wisata & Rute Itinerary Builder -->
-              <div style="background: #f8fafc; border: 1px solid var(--border-glass); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
-                <div>
-                  <div style="font-weight: 800; font-size: 14px; color: #0f172a; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="display: flex; align-items: center; gap: 6px;">
-                      ${Icons.mapPin(16, '#059669')} <span>Paket Wisata & Rute Itinerary:</span>
-                    </span>
-                    <span class="badge" id="trip-modal-stops-count-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 11px;">0 Spot</span>
+              <!-- Section: Ringkasan Rencana Perjalanan & Itinerary -->
+              <div style="background: #f8fafc; border: 1px solid var(--border-glass); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-weight: 800; font-size: 14px; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                    ${Icons.mapPin(16, '#059669')} <span>Rencana Perjalanan & Itinerary:</span>
                   </div>
-                  <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
-                    Pilih preset template atau susun rute mandiri. Perubahan rute di bawah <strong>hanya berlaku untuk trip ini</strong> dan tidak mengubah template master.
-                  </div>
+                  <span id="trip-itinerary-badge" class="badge" style="background: #e0f2fe; color: #0284c7; font-weight: 700;">1 Hari</span>
                 </div>
 
-                <!-- Template Selector & Terapkan Preset -->
-                <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: flex-end;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 11px; font-weight: 700;">Gunakan Preset Template Itinerary:</label>
-                    <select id="trip-template-id" class="form-select" onchange="App.onTripTemplateDropdownChange(this.value)">
-                      <option value="">-- Buat / Kustom Rute Mandiri (Tanpa Template) --</option>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-size: 11px; font-weight: 700;">Nama Paket / Rute Wisata:*</label>
+                  <input type="text" id="trip-tour-package-input" class="form-input" placeholder="Contoh: Paket Bromo Sunrise Hemat 4 Spot" value="${defaultTourPackage}" required />
+                </div>
+
+                <!-- Quick Preset Loader row -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="flex: 1;">
+                    <select id="trip-template-quick-select" class="form-select" style="font-size: 12px; padding: 6px 10px;" onchange="App.applyQuickTemplate(this.value)">
+                      <option value="">-- Muat Preset Template Master --</option>
                       ${AppState.templates.map(tpl => `
-                        <option value="${tpl.id}" data-price="${tpl.defaultPrice}" data-name="${tpl.name}" ${selectedTplId === tpl.id ? 'selected' : ''}>
+                        <option value="${tpl.id}" data-name="${tpl.name}" data-price="${tpl.defaultPrice}">
                           ${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})
                         </option>
                       `).join('')}
                     </select>
                   </div>
-                  <button type="button" class="btn btn-outline btn-sm" style="height: 38px; display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; color: #0284c7; border-color: #bae6fd; background: #ffffff;" onclick="App.applySelectedTemplateToTrip()">
-                    ${Icons.refreshCw(13)} <span>Terapkan Preset</span>
+                  <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; white-space: nowrap; height: 34px;" onclick="App.applyQuickTemplate(document.getElementById('trip-template-quick-select')?.value)">
+                    ${Icons.refreshCw(12)} <span>Terapkan</span>
                   </button>
                 </div>
 
-                <!-- Nama Paket Wisata -->
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" style="font-size: 11px; font-weight: 700;">Nama Paket / Rute Wisata:*</label>
-                  <input type="text" id="trip-tour-package" class="form-input" placeholder="Contoh: Paket Bromo Sunrise Hemat 4 Spot" value="${defaultTourPackage}" required />
-                </div>
+                <!-- Dynamic Preview of Days and Activities -->
+                <div id="trip-itinerary-preview-container"></div>
 
-                <!-- Stops Table / List -->
-                <div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 12px; font-weight: 700; color: #334155;">Daftar Spot Kunjungan Trip:</span>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 11px; color: #64748b;">
-                        Estimasi Tiket/Ops Spot: <strong id="trip-modal-stops-total-cost" style="color: #dc2626;">Rp 0</strong>
-                      </span>
-                      <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 3px 8px; color: #059669; border-color: #a7f3d0; background: #ffffff;" onclick="App.addTripModalStopRow()">
-                        ${Icons.plus(12)} <span>Tambah Spot</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div id="trip-modal-stops-container" style="display: flex; flex-direction: column; gap: 8px;">
-                    <!-- Rows populated dynamically -->
-                  </div>
-
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; flex-wrap: wrap; gap: 6px;">
-                    <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 4px 10px; color: #0284c7; border-color: #bae6fd; background: #ffffff;" onclick="App.syncStopsCostToTripOperationalCost()">
-                      ${Icons.refreshCw(11)} Salin Total Spot ke "Biaya Operasional Langsung"
-                    </button>
-                    <span style="font-size: 10px; color: #94a3b8; font-style: italic;">
-                      *Bebas edit jam, nama spot, atau hapus titik kunjungan.
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Opsi Simpan sebagai Template Baru di Master Data -->
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                  <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; user-select: none; margin-bottom: 0;">
-                    <input type="checkbox" id="chk-save-as-template" onchange="App.toggleSaveAsTemplateFields(this.checked)" style="margin-top: 3px; accent-color: #059669; width: 16px; height: 16px;" />
-                    <div>
-                      <div style="font-weight: 700; font-size: 12px; color: #166534;">Simpan susunan rute ini sebagai Template Baru di Master Data</div>
-                      <div style="font-size: 11px; color: #15803d; line-height: 1.3; margin-top: 1px;">
-                        Rute ini akan didaftarkan sebagai preset baru. <strong>Template master yang ada tidak akan pernah tertimpa atau terubah.</strong>
-                      </div>
-                    </div>
-                  </label>
-
-                  <div id="save-as-template-fields" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #86efac; flex-direction: column; gap: 8px;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Nama Template Baru:*</label>
-                      <input type="text" id="new-template-name" class="form-input" style="font-size: 12px; padding: 6px 10px; background: #ffffff;" placeholder="Contoh: Paket Bromo Sunrise + Coban Pelangi" />
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                      <div>
-                        <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Kategori Template:</label>
-                        <select id="new-template-category" class="form-select" style="font-size: 12px; padding: 6px 10px; background: #ffffff;">
-                          <option value="bromo_sunrise">Bromo Sunrise</option>
-                          <option value="milky_way">Milky Way Malam</option>
-                          <option value="custom_trip">Custom Trip</option>
-                          <option value="open_trip">Open Trip</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Estimasi Durasi:</label>
-                        <input type="text" id="new-template-duration" class="form-input" style="font-size: 12px; padding: 6px 10px; background: #ffffff;" value="12 Jam" placeholder="Contoh: 12 Jam / 2 Hari 1 Malam" />
-                      </div>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: 700; color: #166534; display: block; margin-bottom: 2px;">Deskripsi Singkat Template:</label>
-                      <input type="text" id="new-template-description" class="form-input" style="font-size: 12px; padding: 6px 10px; background: #ffffff;" placeholder="Deskripsi keunggulan rute untuk referensi tim" />
-                    </div>
-                  </div>
-                </div>
+                <!-- Action Button to Open Dedicated Multi-Day Builder Modal -->
+                <button type="button" class="btn btn-primary" onclick="App.openItineraryBuilderModal()" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; font-weight: 700; background: #059669; border-color: #059669; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);">
+                  ${Icons.mapPin(16, '#ffffff')} <span>Kelola / Susun Itinerary Multi-Hari & Rincian Biaya</span>
+                </button>
               </div>
 
               <!-- Crew Assignment Section with Dynamic Details & Status -->
@@ -2133,22 +2122,40 @@ const App = {
 
                 <!-- Driver Jeep -->
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" style="font-weight: 700; color: #1e293b;">1. Driver Jeep & Armada:</label>
-                  <select id="trip-jeep-driver" class="form-select"></select>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <label class="form-label" style="font-weight: 700; color: #1e293b; margin-bottom: 0;">1. Driver Jeep & Armada:</label>
+                    <span style="font-size: 11px; color: #64748b;">Tarif Trip (IDR):</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 140px; gap: 8px;">
+                    <select id="trip-jeep-driver" class="form-select"></select>
+                    <input type="number" id="trip-jeep-fee" class="form-input" min="0" step="5000" placeholder="Tarif Jeep" value="${editTrip?.jeepFee || 0}" title="Tarif / Honor Driver Jeep di trip ini (bebas diedit)" />
+                  </div>
                   <div id="crew-detail-jeep"></div>
                 </div>
 
                 <!-- Driver Shuttle -->
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" style="font-weight: 700; color: #1e293b;">2. Driver Lapangan / Shuttle:</label>
-                  <select id="trip-field-driver" class="form-select"></select>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <label class="form-label" style="font-weight: 700; color: #1e293b; margin-bottom: 0;">2. Driver Lapangan / Shuttle:</label>
+                    <span style="font-size: 11px; color: #64748b;">Tarif Trip (IDR):</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 140px; gap: 8px;">
+                    <select id="trip-field-driver" class="form-select"></select>
+                    <input type="number" id="trip-field-fee" class="form-input" min="0" step="5000" placeholder="Tarif Shuttle" value="${editTrip?.fieldDriverFee || 0}" title="Tarif / Honor Driver Shuttle di trip ini (bebas diedit)" />
+                  </div>
                   <div id="crew-detail-field"></div>
                 </div>
 
                 <!-- Fotografer -->
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" style="font-weight: 700; color: #1e293b;">3. Fotografer Dokumentasi:</label>
-                  <select id="trip-photographer" class="form-select"></select>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <label class="form-label" style="font-weight: 700; color: #1e293b; margin-bottom: 0;">3. Fotografer Dokumentasi:</label>
+                    <span style="font-size: 11px; color: #64748b;">Tarif Trip (IDR):</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 140px; gap: 8px;">
+                    <select id="trip-photographer" class="form-select"></select>
+                    <input type="number" id="trip-photo-fee" class="form-input" min="0" step="5000" placeholder="Tarif Foto" value="${editTrip?.photographerFee || 0}" title="Tarif / Honor Fotografer di trip ini (bebas diedit)" />
+                  </div>
                   <div id="crew-detail-photo"></div>
                 </div>
               </div>
@@ -2395,9 +2402,13 @@ const App = {
       const fieldWorker = AppState.workers.find(w => w.id === fieldId);
       const photoWorker = AppState.workers.find(w => w.id === photoId);
 
-      const jeepFee = jeepWorker ? (jeepWorker.baseRatePerTrip || 0) : 0;
-      const fieldFee = fieldWorker ? (fieldWorker.baseRatePerTrip || 0) : 0;
-      const photoFee = photoWorker ? (photoWorker.baseRatePerTrip || 0) : 0;
+      const jeepFeeInput = document.getElementById('trip-jeep-fee');
+      const fieldFeeInput = document.getElementById('trip-field-fee');
+      const photoFeeInput = document.getElementById('trip-photo-fee');
+
+      const jeepFee = jeepFeeInput ? (parseFloat(jeepFeeInput.value) || 0) : (jeepWorker ? (jeepWorker.baseRatePerTrip || 0) : 0);
+      const fieldFee = fieldFeeInput ? (parseFloat(fieldFeeInput.value) || 0) : (fieldWorker ? (fieldWorker.baseRatePerTrip || 0) : 0);
+      const photoFee = photoFeeInput ? (parseFloat(photoFeeInput.value) || 0) : (photoWorker ? (photoWorker.baseRatePerTrip || 0) : 0);
 
       const agencyId = document.getElementById('trip-agency-id')?.value;
       const agency = AppState.agencies.find(a => a.id === agencyId);
@@ -2503,42 +2514,44 @@ const App = {
     // Initial render
     updateAllCrewAndFinancials();
 
-    // Initial populate of itinerary stops
-    const stopsContainer = document.getElementById('trip-modal-stops-container');
-    if (stopsContainer) {
-      stopsContainer.innerHTML = '';
-      let initialStops = [];
-      if (editTrip && Array.isArray(editTrip.itinerary) && editTrip.itinerary.length > 0) {
-        initialStops = editTrip.itinerary;
-      } else if (currentTpl && Array.isArray(currentTpl.items) && currentTpl.items.length > 0) {
-        initialStops = currentTpl.items;
-      } else {
-        initialStops = [
-          { time: '02:00', title: 'Penjemputan Tamu', operationalCost: 0, description: 'Titik jemput hotel / meeting point' },
-          { time: '04:00', title: 'Sunrise Point Penanjakan 1', operationalCost: 35000, description: 'Melihat matahari terbit Bromo' },
-          { time: '06:30', title: 'Kawah Bromo & Pura Luhur Poten', operationalCost: 0, description: 'Eksplorasi kaldera & kawah aktif' },
-          { time: '08:30', title: 'Pasir Berbisik & Bukit Teletubbies', operationalCost: 0, description: 'Sesi foto di savana hijau' },
-          { time: '11:00', title: 'Pengantaran Kembali (Drop-off)', operationalCost: 0, description: 'Trip selesai kembali ke titik asal' }
-        ];
-      }
-      initialStops.forEach(stop => App.addTripModalStopRow(stop));
-    }
+    // Render itinerary preview in trip modal
+    App.renderTripModalItineraryPreview();
+
+    // Event listeners on custom crew fee inputs
+    document.getElementById('trip-jeep-fee')?.addEventListener('input', refreshProfitPreview);
+    document.getElementById('trip-field-fee')?.addEventListener('input', refreshProfitPreview);
+    document.getElementById('trip-photo-fee')?.addEventListener('input', refreshProfitPreview);
 
     // Event Listeners for Date, Slot & Crew changes
     document.getElementById('trip-date')?.addEventListener('change', updateAllCrewAndFinancials);
     document.getElementById('trip-time-slot')?.addEventListener('change', updateAllCrewAndFinancials);
 
     document.getElementById('trip-jeep-driver')?.addEventListener('change', (e) => {
+      const w = AppState.workers.find(u => u.id === e.target.value);
+      const feeInput = document.getElementById('trip-jeep-fee');
+      if (w && feeInput && (!feeInput.value || parseFloat(feeInput.value) === 0)) {
+        feeInput.value = w.baseRatePerTrip;
+      }
       renderCrewDetailCard('jeep', e.target.value);
       refreshProfitPreview();
     });
 
     document.getElementById('trip-field-driver')?.addEventListener('change', (e) => {
+      const w = AppState.workers.find(u => u.id === e.target.value);
+      const feeInput = document.getElementById('trip-field-fee');
+      if (w && feeInput && (!feeInput.value || parseFloat(feeInput.value) === 0)) {
+        feeInput.value = w.baseRatePerTrip;
+      }
       renderCrewDetailCard('field', e.target.value);
       refreshProfitPreview();
     });
 
     document.getElementById('trip-photographer')?.addEventListener('change', (e) => {
+      const w = AppState.workers.find(u => u.id === e.target.value);
+      const feeInput = document.getElementById('trip-photo-fee');
+      if (w && feeInput && (!feeInput.value || parseFloat(feeInput.value) === 0)) {
+        feeInput.value = w.baseRatePerTrip;
+      }
       renderCrewDetailCard('photo', e.target.value);
       refreshProfitPreview();
     });
@@ -2575,94 +2588,36 @@ const App = {
       const packagePrice = parseFloat(document.getElementById('trip-package-price').value) || 0;
       const operationalCost = parseFloat(document.getElementById('trip-operational-cost').value) || 0;
 
-      // Collect stops from Itinerary Builder
-      const stopRows = document.querySelectorAll('#trip-modal-stops-container .trip-stop-row');
-      const itinerary = [];
-      stopRows.forEach((row, idx) => {
-        const title = row.querySelector('.trip-stop-title')?.value.trim();
-        if (title) {
-          itinerary.push({
-            id: 'stop-' + Date.now() + '-' + (idx + 1),
-            time: row.querySelector('.trip-stop-time')?.value.trim() || '',
-            title: title,
-            location: 'Spot Wisata Bromo',
-            description: row.querySelector('.trip-stop-desc')?.value.trim() || '',
-            operationalCost: parseFloat(row.querySelector('.trip-stop-cost')?.value) || 0
-          });
-        }
-      });
-
-      const tourPackage = document.getElementById('trip-tour-package')?.value.trim() || 'Paket Bromo Tour';
-      let templateId = document.getElementById('trip-template-id')?.value || null;
-
-      // Handle Save as New Template in Master Data
-      const saveAsNewTemplate = document.getElementById('chk-save-as-template')?.checked;
-      if (saveAsNewTemplate) {
-        const newTplName = document.getElementById('new-template-name')?.value.trim();
-        if (!newTplName) {
-          showToast('warning', 'Validasi Template Baru', 'Silakan isi Nama Template Baru yang ingin disimpan.');
-          document.getElementById('new-template-name')?.focus();
-          saveBtn.disabled = false;
-          return;
-        }
-
-        if (itinerary.length === 0) {
-          showToast('warning', 'Rute Masih Kosong', 'Tambahkan minimal 1 spot pada rute sebelum menyimpannya sebagai template.');
-          saveBtn.disabled = false;
-          return;
-        }
-
-        const newCategory = document.getElementById('new-template-category')?.value || 'bromo_sunrise';
-        const newDuration = document.getElementById('new-template-duration')?.value.trim() || '12 Jam';
-        const newDescription = document.getElementById('new-template-description')?.value.trim() || ('Dibuat dari rute trip ' + (editTrip ? editTrip.code : 'baru'));
-
-        // STRICT PROTECTION: Calls API.saveTemplate without an ID -> triggers CREATE (POST), NEVER overwriting existing templates!
-        const tplRes = await API.saveTemplate({
-          name: newTplName,
-          category: newCategory,
-          duration: newDuration,
-          description: newDescription,
-          defaultPrice: packagePrice,
-          items: itinerary
-        });
-
-        if (tplRes.success) {
-          AppState.templates = await API.getTemplates();
-          if (tplRes.template && tplRes.template.id) {
-            templateId = tplRes.template.id;
-          }
-        } else {
-          showToast('warning', 'Peringatan Template', 'Trip akan tetap disimpan, namun template baru gagal dibuat: ' + tplRes.message);
-        }
-      }
+      // Collect Itinerary & Tour Package
+      const itinerary = App._currentTripItinerary || [];
+      const tourPackage = document.getElementById('trip-tour-package-input')?.value.trim() || 'Paket Bromo Tour';
+      const templateId = document.getElementById('trip-template-quick-select')?.value || null;
 
       const agencySelect = document.getElementById('trip-agency-id');
-      const agencyOption = agencySelect.options[agencySelect.selectedIndex];
-      const agencyId = agencySelect.value;
-      const agencyName = agencyOption.getAttribute('data-name');
+      const agencyOption = agencySelect ? agencySelect.options[agencySelect.selectedIndex] : null;
+      const agencyId = agencySelect ? agencySelect.value : null;
+      const agencyName = agencyOption ? agencyOption.getAttribute('data-name') : null;
 
-      // Jeep driver
+      // Custom Editable Crew Fees per Trip
       const jeepSelect = document.getElementById('trip-jeep-driver');
-      const jeepOption = jeepSelect.options[jeepSelect.selectedIndex];
-      const jeepDriverId = jeepSelect.value || null;
-      const jeepDriverName = jeepDriverId ? jeepOption.getAttribute('data-name') : null;
-      const jeepUnit = jeepDriverId ? jeepOption.getAttribute('data-unit') : null;
-      const jeepFee = jeepDriverId ? parseFloat(jeepOption.getAttribute('data-fee')) || 0 : 0;
+      const jeepOption = jeepSelect && jeepSelect.selectedIndex >= 0 ? jeepSelect.options[jeepSelect.selectedIndex] : null;
+      const jeepDriverId = jeepSelect ? jeepSelect.value || null : null;
+      const jeepDriverName = jeepDriverId && jeepOption ? jeepOption.getAttribute('data-name') : null;
+      const jeepUnit = jeepDriverId && jeepOption ? jeepOption.getAttribute('data-unit') : null;
+      const jeepFee = parseFloat(document.getElementById('trip-jeep-fee')?.value) || 0;
 
-      // Field driver
       const fieldSelect = document.getElementById('trip-field-driver');
-      const fieldOption = fieldSelect.options[fieldSelect.selectedIndex];
-      const fieldDriverId = fieldSelect.value || null;
-      const fieldDriverName = fieldDriverId ? fieldOption.getAttribute('data-name') : null;
-      const fieldDriverUnit = fieldDriverId ? fieldOption.getAttribute('data-unit') : null;
-      const fieldDriverFee = fieldDriverId ? parseFloat(fieldOption.getAttribute('data-fee')) || 0 : 0;
+      const fieldOption = fieldSelect && fieldSelect.selectedIndex >= 0 ? fieldSelect.options[fieldSelect.selectedIndex] : null;
+      const fieldDriverId = fieldSelect ? fieldSelect.value || null : null;
+      const fieldDriverName = fieldDriverId && fieldOption ? fieldOption.getAttribute('data-name') : null;
+      const fieldDriverUnit = fieldDriverId && fieldOption ? fieldOption.getAttribute('data-unit') : null;
+      const fieldDriverFee = parseFloat(document.getElementById('trip-field-fee')?.value) || 0;
 
-      // Photographer
       const photoSelect = document.getElementById('trip-photographer');
-      const photoOption = photoSelect.options[photoSelect.selectedIndex];
-      const photographerId = photoSelect.value || null;
-      const photographerName = photographerId ? photoOption.getAttribute('data-name') : null;
-      const photographerFee = photographerId ? parseFloat(photoOption.getAttribute('data-fee')) || 0 : 0;
+      const photoOption = photoSelect && photoSelect.selectedIndex >= 0 ? photoSelect.options[photoSelect.selectedIndex] : null;
+      const photographerId = photoSelect ? photoSelect.value || null : null;
+      const photographerName = photographerId && photoOption ? photoOption.getAttribute('data-name') : null;
+      const photographerFee = parseFloat(document.getElementById('trip-photo-fee')?.value) || 0;
 
       // Validasi Kapasitas Maksimal di Frontend sebelum kirim
       if (jeepDriverId) {
@@ -2736,153 +2691,664 @@ const App = {
     };
   },
   onTemplateSelected(tplId) {
-    this.onTripTemplateDropdownChange(tplId);
+    this.applyQuickTemplate(tplId);
   },
 
-  onTripTemplateDropdownChange(tplId) {
-    if (!tplId) {
-      showToast('info', 'Mode Mandiri', 'Rute kustom mandiri aktif. Anda bebas menyusun titik rute secara manual.');
-      return;
-    }
-    this.applySelectedTemplateToTrip(false);
-  },
-
-  applySelectedTemplateToTrip(showAlert = true) {
-    const select = document.getElementById('trip-template-id');
-    const tplId = select ? select.value : '';
-    if (!tplId) {
-      showToast('warning', 'Pilih Template', 'Silakan pilih salah satu preset template pada dropdown terlebih dahulu.');
-      return;
-    }
+  applyQuickTemplate(tplId) {
+    if (!tplId) return;
     const tpl = AppState.templates.find(t => t.id === tplId);
     if (!tpl) return;
 
-    // Update package name input
-    const tourPkgInput = document.getElementById('trip-tour-package');
-    if (tourPkgInput) tourPkgInput.value = tpl.name;
+    // Load items into current trip itinerary
+    App._currentTripItinerary = JSON.parse(JSON.stringify(tpl.items || []));
+    App._currentTripDuration = tpl.duration || '12 Jam';
 
-    // Update price if default or empty
+    const pkgInput = document.getElementById('trip-tour-package-input');
+    if (pkgInput) pkgInput.value = tpl.name;
+
     const priceInput = document.getElementById('trip-package-price');
     if (priceInput && (!priceInput.value || parseFloat(priceInput.value) === 0 || parseFloat(priceInput.value) === 1750000)) {
       priceInput.value = tpl.defaultPrice;
       priceInput.dispatchEvent(new Event('input'));
     }
 
-    // Populate stops from template items
-    const container = document.getElementById('trip-modal-stops-container');
-    if (container) {
-      container.innerHTML = '';
-      if (Array.isArray(tpl.items) && tpl.items.length > 0) {
-        tpl.items.forEach(stop => App.addTripModalStopRow(stop));
-      } else {
-        App.addTripModalStopRow({ title: 'Spot Kunjungan Utama', time: '04:00', operationalCost: 0, description: '' });
+    // Auto-calculate and sync total cost
+    let totalCost = 0;
+    (App._currentTripItinerary || []).forEach(act => {
+      totalCost += (parseFloat(act.operationalCost) || 0) + (parseFloat(act.ticketCost) || 0) + (parseFloat(act.hotelCost) || 0);
+    });
+    const opCostInput = document.getElementById('trip-operational-cost');
+    if (opCostInput && totalCost > 0) {
+      opCostInput.value = totalCost;
+      opCostInput.dispatchEvent(new Event('input'));
+    }
+
+    App.renderTripModalItineraryPreview();
+    showToast('success', 'Preset Diterapkan', `Template "${tpl.name}" dimuat ke perjalanan. Template master aman.`);
+  },
+
+  renderTripModalItineraryPreview() {
+    const container = document.getElementById('trip-itinerary-preview-container');
+    const badge = document.getElementById('trip-itinerary-badge');
+    const acts = App._currentTripItinerary || [];
+
+    // Group by day
+    const dayMap = {};
+    let totalOps = 0, totalTickets = 0, totalHotels = 0;
+    acts.forEach(item => {
+      const dNum = item.day || 1;
+      if (!dayMap[dNum]) {
+        dayMap[dNum] = {
+          day: dNum,
+          title: item.dayTitle || `Hari ${dNum}`,
+          activities: []
+        };
       }
-    }
-
-    if (showAlert) {
-      showToast('success', 'Preset Diterapkan', `Rute dari "${tpl.name}" berhasil diterapkan. Template master aman dan tidak akan terubah.`);
-    }
-  },
-
-  addTripModalStopRow(stop = null) {
-    const container = document.getElementById('trip-modal-stops-container');
-    if (!container) return;
-    const index = container.children.length;
-    const div = document.createElement('div');
-    div.className = 'trip-stop-row';
-    div.style = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);';
-
-    const safeTitle = (stop?.title || '').replace(/"/g, '&quot;');
-    const safeTime = (stop?.time || '').replace(/"/g, '&quot;');
-    const safeDesc = (stop?.description || '').replace(/"/g, '&quot;');
-    const safeCost = stop?.operationalCost ?? 0;
-
-    div.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="trip-stop-badge badge" style="background: #e0f2fe; color: #0284c7; font-size: 10px; font-weight: 800; padding: 2px 6px;">Spot #${index + 1}</span>
-        <button type="button" class="btn btn-outline btn-sm text-red" style="padding: 2px 6px; font-size: 10px; color: #dc2626; border-color: #fecaca;" onclick="App.removeTripModalStopRow(this)">
-          ${Icons.trash(12)} <span>Hapus</span>
-        </button>
-      </div>
-      <div class="trip-stop-grid">
-        <div>
-          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Waktu / Jam:</label>
-          <input type="text" class="form-input trip-stop-time" placeholder="04:00 WIB" value="${safeTime}" style="font-size: 12px; padding: 5px 8px;" />
-        </div>
-        <div>
-          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Nama Titik / Spot Wisata:*</label>
-          <input type="text" class="form-input trip-stop-title" placeholder="Nama Spot (cth: Penanjakan 1 Bromo)" value="${safeTitle}" style="font-size: 12px; padding: 5px 8px;" required />
-        </div>
-        <div>
-          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Tiket/Ops (IDR):</label>
-          <input type="number" class="form-input trip-stop-cost" placeholder="0" min="0" step="1000" value="${safeCost}" style="font-size: 12px; padding: 5px 8px;" oninput="App.updateTripModalStopsTotalCost()" />
-        </div>
-      </div>
-      <div>
-        <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Aktivitas / Catatan Spot:</label>
-        <input type="text" class="form-input trip-stop-desc" placeholder="Contoh: Spot foto matahari terbit & view Gunung Semeru" value="${safeDesc}" style="font-size: 12px; padding: 5px 8px;" />
-      </div>
-    `;
-    container.appendChild(div);
-    App.updateTripModalStopsTotalCost();
-  },
-
-  removeTripModalStopRow(btn) {
-    const row = btn.closest('.trip-stop-row');
-    if (row) {
-      row.remove();
-      const container = document.getElementById('trip-modal-stops-container');
-      if (container) {
-        container.querySelectorAll('.trip-stop-row').forEach((r, idx) => {
-          const badge = r.querySelector('.trip-stop-badge');
-          if (badge) badge.textContent = `Spot #${idx + 1}`;
-        });
-      }
-      App.updateTripModalStopsTotalCost();
-    }
-  },
-
-  updateTripModalStopsTotalCost() {
-    let total = 0;
-    const rows = document.querySelectorAll('#trip-modal-stops-container .trip-stop-row');
-    rows.forEach(r => {
-      const costInput = r.querySelector('.trip-stop-cost');
-      total += parseFloat(costInput?.value) || 0;
+      dayMap[dNum].activities.push(item);
+      totalOps += (parseFloat(item.operationalCost) || 0);
+      totalTickets += (parseFloat(item.ticketCost) || 0);
+      totalHotels += (parseFloat(item.hotelCost) || 0);
     });
 
-    const costBadge = document.getElementById('trip-modal-stops-total-cost');
-    if (costBadge) {
-      costBadge.textContent = formatIDR(total);
+    const days = Object.values(dayMap);
+    const totalDays = days.length > 0 ? days.length : 1;
+    const grandTotal = totalOps + totalTickets + totalHotels;
+
+    if (badge) {
+      badge.textContent = `${totalDays} Hari (${acts.length} Kegiatan)`;
     }
-    const countBadge = document.getElementById('trip-modal-stops-count-badge');
-    if (countBadge) {
-      countBadge.textContent = `${rows.length} Spot`;
+
+    if (!container) return;
+    if (acts.length === 0) {
+      container.innerHTML = `
+        <div style="font-size: 11px; color: #94a3b8; font-style: italic; padding: 8px; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 6px; text-align: center;">
+          Belum ada susunan kegiatan rute. Klik tombol di bawah untuk menyusun itinerary.
+        </div>
+      `;
+      return;
     }
-    return total;
+
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <!-- Cost summary pills -->
+        <div style="display: flex; gap: 6px; font-size: 10px; flex-wrap: wrap; background: #ffffff; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <span style="color: #475569;">🛠️ Ops: <strong style="color: #dc2626;">${formatIDR(totalOps)}</strong></span>
+          <span style="color: #475569;">&bull; 🎟️ Tiket: <strong style="color: #ea580c;">${formatIDR(totalTickets)}</strong></span>
+          <span style="color: #475569;">&bull; 🏨 Hotel: <strong style="color: #7c3aed;">${formatIDR(totalHotels)}</strong></span>
+          <span style="margin-left: auto; color: #166534; font-weight: 800;">Total: ${formatIDR(grandTotal)}</span>
+        </div>
+
+        <!-- Days list preview -->
+        <div style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; padding-right: 2px;">
+          ${days.map(d => `
+            <div style="font-size: 11px; padding: 5px 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <strong style="color: #0284c7;">📅 ${d.title}</strong> (${d.activities.length} spot): 
+              <span style="color: #64748b;">${d.activities.map(a => a.title).slice(0, 3).join(', ')}${d.activities.length > 3 ? ` (+${d.activities.length - 3} lainnya)` : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
   },
 
-  syncStopsCostToTripOperationalCost() {
-    const total = App.updateTripModalStopsTotalCost();
-    const opInput = document.getElementById('trip-operational-cost');
-    if (opInput) {
-      opInput.value = total;
-      opInput.dispatchEvent(new Event('input'));
-      showToast('info', 'Biaya Disinkronkan', `Biaya operasional langsung disinkronkan ke ${formatIDR(total)}.`);
+  openItineraryBuilderModal() {
+    const currentActs = App._currentTripItinerary || [];
+    const dayMap = {};
+    currentActs.forEach(item => {
+      const dNum = parseInt(item.day, 10) || 1;
+      if (!dayMap[dNum]) {
+        dayMap[dNum] = {
+          day: dNum,
+          title: item.dayTitle || `Hari ${dNum}`,
+          activities: []
+        };
+      }
+      dayMap[dNum].activities.push({
+        id: item.id || ('act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)),
+        time: item.time || '',
+        title: item.title || '',
+        operationalDesc: item.operationalDesc || '',
+        operationalCost: parseFloat(item.operationalCost) || 0,
+        ticketCost: parseFloat(item.ticketCost) || 0,
+        hotelCost: parseFloat(item.hotelCost) || 0,
+        notes: item.notes || item.description || ''
+      });
+    });
+
+    let days = Object.values(dayMap);
+    if (days.length === 0) {
+      days = [
+        {
+          day: 1,
+          title: 'Hari 1 - Tour Sunrise Bromo',
+          activities: [
+            { id: 'act-1', time: '02:00 WIB', title: 'Penjemputan Tamu', operationalDesc: 'Shuttle Armada', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Meeting point' },
+            { id: 'act-2', time: '04:00 WIB', title: 'Sunrise Point Penanjakan 1', operationalDesc: 'Jeep Hardtop', operationalCost: 150000, ticketCost: 35000, hotelCost: 0, notes: 'View fajar' }
+          ]
+        }
+      ];
+    }
+    days.sort((a, b) => a.day - b.day);
+
+    const tourPkg = document.getElementById('trip-tour-package-input')?.value.trim() || 'Paket Bromo Tour';
+    const durStr = App._currentTripDuration || (days.length > 1 ? `${days.length} Hari ${days.length - 1} Malam` : '12 Jam');
+
+    App._builderState = {
+      tourPackage: tourPkg,
+      duration: durStr,
+      activeDay: 1,
+      days: days
+    };
+
+    let container = document.getElementById('itinerary-builder-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'itinerary-builder-modal-container';
+      document.body.appendChild(container);
+    }
+
+    container.innerHTML = App.renderBuilderModalContent();
+    App.renderBuilderDayTabs();
+    App.renderBuilderDayView();
+  },
+
+  renderBuilderModalContent() {
+    const s = App._builderState;
+    return `
+      <div class="sub-modal-overlay">
+        <div class="modal-content" style="max-width: 920px; width: 95vw; max-height: 92vh; display: flex; flex-direction: column;">
+          <!-- Modal Header -->
+          <div class="modal-header" style="padding-bottom: 12px; border-bottom: 1px solid var(--border-glass);">
+            <div>
+              <div style="font-weight: 800; font-size: 16px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                ${Icons.mapPin(18, '#059669')} <span>Penyusun Rute & Itinerary Multi-Hari</span>
+              </div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                Tentukan berapa hari trip berlangsung, rincian aktivitas per hari, estimasi operasional, tiket, hotel, dan catatan khusus.
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="App.closeItineraryBuilderModal()">${Icons.x(16)}</button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body" style="overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px;">
+            <!-- Top Controls Row: Template & Package Info -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-size: 11px; font-weight: 700;">Nama Paket / Rute Wisata:*</label>
+                  <input type="text" id="modal-builder-tour-package" class="form-input" style="font-size: 12px;" value="${s.tourPackage}" placeholder="Contoh: Paket Bromo Sunrise + Coban Pelangi" oninput="App._builderState.tourPackage = this.value" required />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-size: 11px; font-weight: 700;">Estimasi Durasi Trip:</label>
+                  <input type="text" id="modal-builder-duration" class="form-input" style="font-size: 12px;" value="${s.duration}" placeholder="Contoh: 2 Hari 1 Malam / 12 Jam" oninput="App._builderState.duration = this.value" />
+                </div>
+              </div>
+
+              <!-- Preset Loader Strip -->
+              <div style="display: flex; align-items: center; gap: 8px; pt-2; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                <span style="font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap;">Gunakan Preset:</span>
+                <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 5px 8px;">
+                  <option value="">-- Pilih Template Itinerary Master --</option>
+                  ${AppState.templates.map(tpl => `
+                    <option value="${tpl.id}">${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})</option>
+                  `).join('')}
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; white-space: nowrap; height: 32px;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
+                  ${Icons.refreshCw(12)} <span>Muat Preset</span>
+                </button>
+                <span style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Template master tidak akan tertimpa.</span>
+              </div>
+            </div>
+
+            <!-- Multi-Day Tabs Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div id="builder-day-tabs" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+              <button type="button" class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; font-weight: 700; font-size: 11px; padding: 5px 10px;" onclick="App.addBuilderDay()">
+                ${Icons.plus(12)} <span>+ Tambah Hari</span>
+              </button>
+            </div>
+
+            <!-- Active Day Content Card -->
+            <div id="builder-day-view" style="background: #f8fafc; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <!-- Filled by App.renderBuilderDayView() -->
+            </div>
+
+            <!-- Total Budget Summary Card -->
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">
+                Rincian Biaya Rute Seluruh Hari:
+              </div>
+              <div style="display: flex; gap: 14px; font-size: 11px; flex-wrap: wrap;">
+                <span>🛠️ Total Ops: <strong id="builder-total-op" style="color: #dc2626;">Rp 0</strong></span>
+                <span>🎟️ Total Tiket: <strong id="builder-total-ticket" style="color: #ea580c;">Rp 0</strong></span>
+                <span>🏨 Total Hotel: <strong id="builder-total-hotel" style="color: #7c3aed;">Rp 0</strong></span>
+                <span style="padding-left: 6px; border-left: 2px solid #86efac;">💎 Grand Total: <strong id="builder-grand-total" style="color: #166534; font-size: 13px;">Rp 0</strong></span>
+              </div>
+            </div>
+
+            <!-- Save as New Template Option -->
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
+              <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; user-select: none; margin-bottom: 0;">
+                <input type="checkbox" id="builder-chk-save-as-template" onchange="App.toggleBuilderSaveAsTemplate(this.checked)" style="margin-top: 3px; accent-color: #059669; width: 16px; height: 16px;" />
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: #0f172a;">Simpan susunan rute multi-hari ini sebagai Template Baru di Master Data</div>
+                  <div style="font-size: 11px; color: #64748b;">Jadikan preset rute baru untuk dipakai di masa depan. <strong>Template master yang ada tidak akan pernah terubah.</strong></div>
+                </div>
+              </label>
+
+              <div id="builder-save-as-template-fields" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; flex-direction: column; gap: 8px;">
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">Nama Template Baru:*</label>
+                  <input type="text" id="builder-new-template-name" class="form-input" style="font-size: 12px; padding: 6px 10px;" placeholder="Contoh: Paket 2D1N Bromo Sunrise + Coban Pelangi" />
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">Kategori:</label>
+                    <select id="builder-new-template-category" class="form-select" style="font-size: 12px;">
+                      <option value="custom_trip">Custom Trip</option>
+                      <option value="bromo_sunrise">Bromo Sunrise</option>
+                      <option value="milky_way">Milky Way Malam</option>
+                      <option value="open_trip">Open Trip</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">Deskripsi Singkat:</label>
+                    <input type="text" id="builder-new-template-description" class="form-input" style="font-size: 12px; padding: 6px 10px;" placeholder="Fasilitas dan highlight trip" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-glass); display: flex; justify-content: space-between;">
+            <button type="button" class="btn btn-outline" onclick="App.closeItineraryBuilderModal()">Batal</button>
+            <button type="button" class="btn btn-primary" onclick="App.saveItineraryBuilderToTrip()" style="display: flex; align-items: center; gap: 6px; font-weight: 700;">
+              ${Icons.check(14)} <span>Simpan & Terapkan ke Trip</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderBuilderDayTabs() {
+    const tabsContainer = document.getElementById('builder-day-tabs');
+    if (!tabsContainer) return;
+    const s = App._builderState;
+    tabsContainer.innerHTML = s.days.map(d => `
+      <button type="button" class="builder-day-tab ${d.day === s.activeDay ? 'active' : ''}" onclick="App.switchBuilderDay(${d.day})">
+        <span>📅 Hari ${d.day}</span>
+        <span class="badge" style="font-size: 10px; background: rgba(0,0,0,0.08); padding: 1px 5px;">${d.activities.length}</span>
+        ${s.days.length > 1 ? `<span onclick="event.stopPropagation(); App.removeBuilderDay(${d.day});" style="margin-left: 4px; color: #ef4444; font-size: 13px;" title="Hapus Hari">&times;</span>` : ''}
+      </button>
+    `).join('');
+  },
+
+  renderBuilderDayView() {
+    const container = document.getElementById('builder-day-view');
+    if (!container) return;
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay) || s.days[0];
+    if (!curDay) return;
+
+    container.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+        <div style="flex: 1;">
+          <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">
+            Tema / Rencana Hari ${curDay.day}:
+          </label>
+          <input type="text" class="form-input" id="builder-active-day-title" style="font-size: 12px; padding: 6px 10px; background: #ffffff;" value="${curDay.title || ''}" placeholder="Contoh: Hari ${curDay.day} - Eksplorasi Sunrise Bromo & Lautan Pasir" oninput="App.onActiveDayTitleChange(this.value)" />
+        </div>
+        <div style="text-align: right;">
+          <button type="button" class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; font-size: 11px; white-space: nowrap; height: 34px; margin-top: 16px; background: #ffffff;" onclick="App.addBuilderActivity()">
+            ${Icons.plus(12)} <span>Tambah Kegiatan</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Activities List for current day -->
+      <div id="builder-activities-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+        ${curDay.activities.map((act, idx) => `
+          <div class="builder-activity-card" data-idx="${idx}">
+            <!-- Card Header: Order, Jam (opsional), Title, Delete -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge" style="background: #e0f2fe; color: #0284c7; font-weight: 800; font-size: 10px;">#${idx + 1}</span>
+              <div style="width: 140px;">
+                <input type="text" class="form-input act-time" style="font-size: 11px; padding: 4px 8px;" placeholder="Jam (opsional)" value="${(act.time || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+              </div>
+              <div style="flex: 1;">
+                <input type="text" class="form-input act-title" style="font-size: 12px; font-weight: 700; padding: 4px 8px;" placeholder="Nama Kegiatan / Spot Kunjungan (*)" value="${(act.title || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" required />
+              </div>
+              <button type="button" class="btn btn-outline btn-sm text-red" style="padding: 3px 6px; font-size: 10px; color: #dc2626; border-color: #fecaca;" onclick="App.removeBuilderActivity(${idx})">
+                ${Icons.trash(12)}
+              </button>
+            </div>
+
+            <!-- Cost Inputs (3 columns: Ops, Tiket, Hotel) -->
+            <div class="builder-cost-grid">
+              <div>
+                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Operasional (IDR):</label>
+                <input type="number" class="form-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.operationalCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+              </div>
+              <div>
+                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Tiket Masuk (IDR):</label>
+                <input type="number" class="form-input act-ticket-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.ticketCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+              </div>
+              <div>
+                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Hotel / Nginap (IDR):</label>
+                <input type="number" class="form-input act-hotel-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="10000" value="${act.hotelCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+              </div>
+            </div>
+
+            <!-- Notes & Operational Description -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div>
+                <label style="font-size: 10px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px;">Keterangan Operasional:</label>
+                <input type="text" class="form-input act-op-desc" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Sewa jeep, armada shuttle, bensin" value="${(act.operationalDesc || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+              </div>
+              <div>
+                <label style="font-size: 10px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px;">Catatan Khusus Aktivitas:</label>
+                <input type="text" class="form-input act-notes" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Bawa jaket tebal, voucher kamar" value="${(act.notes || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    App.updateBuilderTotals();
+  },
+
+  onActiveDayTitleChange(val) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (curDay) curDay.title = val;
+  },
+
+  syncBuilderCardToState(idx) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (!curDay || !curDay.activities[idx]) return;
+
+    const cards = document.querySelectorAll('#builder-activities-list .builder-activity-card');
+    const card = cards[idx];
+    if (!card) return;
+
+    curDay.activities[idx].time = card.querySelector('.act-time')?.value.trim() || '';
+    curDay.activities[idx].title = card.querySelector('.act-title')?.value.trim() || '';
+    curDay.activities[idx].operationalCost = parseFloat(card.querySelector('.act-op-cost')?.value) || 0;
+    curDay.activities[idx].ticketCost = parseFloat(card.querySelector('.act-ticket-cost')?.value) || 0;
+    curDay.activities[idx].hotelCost = parseFloat(card.querySelector('.act-hotel-cost')?.value) || 0;
+    curDay.activities[idx].operationalDesc = card.querySelector('.act-op-desc')?.value.trim() || '';
+    curDay.activities[idx].notes = card.querySelector('.act-notes')?.value.trim() || '';
+
+    App.updateBuilderTotals();
+  },
+
+  addBuilderDay() {
+    const s = App._builderState;
+    const nextDayNum = s.days.length + 1;
+    s.days.push({
+      day: nextDayNum,
+      title: `Hari ${nextDayNum} - Eksplorasi Lanjutan`,
+      activities: [
+        {
+          id: 'act-' + Date.now(),
+          time: '',
+          title: 'Kegiatan Hari ' + nextDayNum,
+          operationalDesc: '',
+          operationalCost: 0,
+          ticketCost: 0,
+          hotelCost: 0,
+          notes: ''
+        }
+      ]
+    });
+    s.activeDay = nextDayNum;
+    s.duration = `${nextDayNum} Hari ${nextDayNum - 1} Malam`;
+    const durInp = document.getElementById('modal-builder-duration');
+    if (durInp) durInp.value = s.duration;
+
+    App.renderBuilderDayTabs();
+    App.renderBuilderDayView();
+  },
+
+  removeBuilderDay(dayNum) {
+    const s = App._builderState;
+    if (s.days.length <= 1) {
+      showToast('warning', 'Peringatan', 'Itinerary minimal harus memiliki 1 hari perjalanan.');
+      return;
+    }
+    if (confirm(`Apakah Anda yakin ingin menghapus Hari ${dayNum} beserta seluruh kegiatannya?`)) {
+      s.days = s.days.filter(d => d.day !== dayNum);
+      // Re-index remaining days
+      s.days.forEach((d, idx) => {
+        d.day = idx + 1;
+        if (!d.title || d.title.startsWith('Hari ')) {
+          d.title = `Hari ${idx + 1} - ${d.title.split(' - ')[1] || 'Eksplorasi'}`;
+        }
+      });
+      if (s.activeDay > s.days.length) {
+        s.activeDay = s.days.length;
+      }
+      s.duration = s.days.length > 1 ? `${s.days.length} Hari ${s.days.length - 1} Malam` : '12 Jam';
+      const durInp = document.getElementById('modal-builder-duration');
+      if (durInp) durInp.value = s.duration;
+
+      App.renderBuilderDayTabs();
+      App.renderBuilderDayView();
     }
   },
 
-  toggleSaveAsTemplateFields(checked) {
-    const box = document.getElementById('save-as-template-fields');
-    if (box) {
-      box.style.display = checked ? 'flex' : 'none';
+  switchBuilderDay(dayNum) {
+    App._builderState.activeDay = dayNum;
+    App.renderBuilderDayTabs();
+    App.renderBuilderDayView();
+  },
+
+  addBuilderActivity() {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (!curDay) return;
+
+    curDay.activities.push({
+      id: 'act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      time: '',
+      title: '',
+      operationalDesc: '',
+      operationalCost: 0,
+      ticketCost: 0,
+      hotelCost: 0,
+      notes: ''
+    });
+
+    App.renderBuilderDayTabs();
+    App.renderBuilderDayView();
+  },
+
+  removeBuilderActivity(actIdx) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (!curDay || !curDay.activities[actIdx]) return;
+
+    curDay.activities.splice(actIdx, 1);
+    App.renderBuilderDayTabs();
+    App.renderBuilderDayView();
+  },
+
+  updateBuilderTotals() {
+    const s = App._builderState;
+    let totalOp = 0, totalTicket = 0, totalHotel = 0;
+
+    s.days.forEach(d => {
+      d.activities.forEach(a => {
+        totalOp += parseFloat(a.operationalCost) || 0;
+        totalTicket += parseFloat(a.ticketCost) || 0;
+        totalHotel += parseFloat(a.hotelCost) || 0;
+      });
+    });
+
+    const grandTotal = totalOp + totalTicket + totalHotel;
+
+    const opEl = document.getElementById('builder-total-op');
+    const ticketEl = document.getElementById('builder-total-ticket');
+    const hotelEl = document.getElementById('builder-total-hotel');
+    const grandEl = document.getElementById('builder-grand-total');
+
+    if (opEl) opEl.textContent = formatIDR(totalOp);
+    if (ticketEl) ticketEl.textContent = formatIDR(totalTicket);
+    if (hotelEl) hotelEl.textContent = formatIDR(totalHotel);
+    if (grandEl) grandEl.textContent = formatIDR(grandTotal);
+
+    return { totalOp, totalTicket, totalHotel, grandTotal };
+  },
+
+  applyPresetToBuilder(tplId) {
+    if (!tplId) return;
+    const tpl = AppState.templates.find(t => t.id === tplId);
+    if (!tpl) return;
+
+    const items = tpl.items || [];
+    const dayMap = {};
+    items.forEach(item => {
+      const dNum = parseInt(item.day, 10) || 1;
+      if (!dayMap[dNum]) {
+        dayMap[dNum] = {
+          day: dNum,
+          title: item.dayTitle || `Hari ${dNum} - ${tpl.name}`,
+          activities: []
+        };
+      }
+      dayMap[dNum].activities.push({
+        id: 'act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        time: item.time || '',
+        title: item.title || '',
+        operationalDesc: item.operationalDesc || '',
+        operationalCost: parseFloat(item.operationalCost) || 0,
+        ticketCost: parseFloat(item.ticketCost) || 0,
+        hotelCost: parseFloat(item.hotelCost) || 0,
+        notes: item.notes || item.description || ''
+      });
+    });
+
+    let days = Object.values(dayMap);
+    if (days.length === 0) {
+      days = [{ day: 1, title: 'Hari 1 - ' + tpl.name, activities: [] }];
     }
+    days.sort((a, b) => a.day - b.day);
+
+    App._builderState.days = days;
+    App._builderState.activeDay = 1;
+    App._builderState.tourPackage = tpl.name;
+    App._builderState.duration = tpl.duration || (days.length > 1 ? `${days.length} Hari ${days.length - 1} Malam` : '12 Jam');
+
+    const pkgInp = document.getElementById('modal-builder-tour-package');
+    const durInp = document.getElementById('modal-builder-duration');
+    if (pkgInp) pkgInp.value = tpl.name;
+    if (durInp) durInp.value = App._builderState.duration;
+
+    App.renderBuilderDayTabs();
+    App.renderBuilderDayView();
+    showToast('success', 'Preset Diterapkan', `Preset "${tpl.name}" dimuat ke penyusun rute. Template master tidak akan terubah.`);
+  },
+
+  toggleBuilderSaveAsTemplate(checked) {
+    const fields = document.getElementById('builder-save-as-template-fields');
+    if (fields) fields.style.display = checked ? 'flex' : 'none';
+
     if (checked) {
-      const nameInput = document.getElementById('new-template-name');
-      const tourPkg = document.getElementById('trip-tour-package')?.value.trim() || '';
-      if (nameInput && !nameInput.value) {
-        nameInput.value = tourPkg ? `${tourPkg} (Kustom)` : '';
+      const nameInp = document.getElementById('builder-new-template-name');
+      const tourPkg = document.getElementById('modal-builder-tour-package')?.value.trim() || '';
+      if (nameInp && !nameInp.value) {
+        nameInp.value = tourPkg ? `${tourPkg} (Kustom)` : '';
       }
     }
+  },
+
+  async saveItineraryBuilderToTrip() {
+    const s = App._builderState;
+    const tourPackage = document.getElementById('modal-builder-tour-package')?.value.trim() || s.tourPackage || 'Paket Bromo Tour';
+    const duration = document.getElementById('modal-builder-duration')?.value.trim() || s.duration || '12 Jam';
+
+    // Compile all activities across all days
+    const allActivities = [];
+    s.days.forEach(d => {
+      d.activities.forEach(act => {
+        if (act.title && act.title.trim()) {
+          allActivities.push({
+            id: act.id || ('act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)),
+            day: d.day,
+            dayTitle: d.title || (`Hari ${d.day}`),
+            time: act.time || '',
+            title: act.title.trim(),
+            operationalDesc: act.operationalDesc || '',
+            operationalCost: parseFloat(act.operationalCost) || 0,
+            ticketCost: parseFloat(act.ticketCost) || 0,
+            hotelCost: parseFloat(act.hotelCost) || 0,
+            notes: act.notes || '',
+            description: (act.notes ? act.notes + ' ' : '') + (act.operationalDesc ? '(' + act.operationalDesc + ')' : '')
+          });
+        }
+      });
+    });
+
+    if (allActivities.length === 0) {
+      showToast('warning', 'Aktivitas Kosong', 'Tambahkan minimal 1 kegiatan yang memiliki nama sebelum menerapkan.');
+      return;
+    }
+
+    App._currentTripItinerary = allActivities;
+    App._currentTripDuration = duration;
+
+    // Check save as new template in master data
+    const saveNewTpl = document.getElementById('builder-chk-save-as-template')?.checked;
+    if (saveNewTpl) {
+      const newTplName = document.getElementById('builder-new-template-name')?.value.trim() || (tourPackage + ' (Baru)');
+      const newCat = document.getElementById('builder-new-template-category')?.value || 'custom_trip';
+      const newDesc = document.getElementById('builder-new-template-description')?.value.trim() || '';
+      const defPrice = parseFloat(document.getElementById('trip-package-price')?.value) || 0;
+
+      const tplRes = await API.saveTemplate({
+        name: newTplName,
+        category: newCat,
+        duration: duration,
+        description: newDesc,
+        defaultPrice: defPrice,
+        items: allActivities
+      });
+
+      if (tplRes.success) {
+        AppState.templates = await API.getTemplates();
+        showToast('success', 'Template Baru Disimpan', `Template "${newTplName}" berhasil didaftarkan ke Master Data.`);
+      }
+    }
+
+    // Sync tour package name to trip modal
+    const pkgInp = document.getElementById('trip-tour-package-input');
+    if (pkgInp) pkgInp.value = tourPackage;
+
+    // Calculate grand total cost and sync to operational cost
+    let grandTotal = 0;
+    allActivities.forEach(a => {
+      grandTotal += (parseFloat(a.operationalCost) || 0) + (parseFloat(a.ticketCost) || 0) + (parseFloat(a.hotelCost) || 0);
+    });
+
+    const opCostInput = document.getElementById('trip-operational-cost');
+    if (opCostInput) {
+      opCostInput.value = grandTotal;
+      opCostInput.dispatchEvent(new Event('input'));
+    }
+
+    App.renderTripModalItineraryPreview();
+    App.closeItineraryBuilderModal();
+    showToast('success', 'Itinerary Diterapkan', `${s.days.length} Hari (${allActivities.length} Kegiatan) berhasil diterapkan ke perjalanan.`);
+  },
+
+  closeItineraryBuilderModal() {
+    const container = document.getElementById('itinerary-builder-modal-container');
+    if (container) container.remove();
   },
 
   openManageMasterModal(initialTab = 'workers') {
