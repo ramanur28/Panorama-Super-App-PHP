@@ -2570,23 +2570,31 @@ const App = {
     }
   },
 
-  openManageMasterModal() {
+  openManageMasterModal(initialTab = 'workers') {
+    if (!AppState.currentUser || AppState.currentUser.role !== 'admin') return;
     const modalRoot = document.getElementById('modal-root');
     modalRoot.innerHTML = `
       <div class="modal-overlay">
-        <div class="modal-content" style="max-width: 750px;">
+        <div class="modal-content" style="max-width: 820px;">
           <div class="modal-header">
             <div style="font-weight: 800; font-size: 16px; color: #0f172a;">Manajemen Master Data</div>
             <button class="btn btn-outline btn-sm" onclick="closeModal()">${Icons.x(16)}</button>
           </div>
           <div class="modal-body">
-            <div class="segmented-nav" style="margin-bottom: 12px;">
-              <button class="segmented-btn active" id="tab-master-workers" onclick="App.switchMasterSubTab('workers')">Master Kru (${AppState.workers.length})</button>
-              <button class="segmented-btn" id="tab-master-agencies" onclick="App.switchMasterSubTab('agencies')">Master Agen (${AppState.agencies.length})</button>
+            <div class="segmented-nav" style="margin-bottom: 14px;">
+              <button class="segmented-btn ${initialTab === 'workers' ? 'active' : ''}" id="tab-master-workers" onclick="App.switchMasterSubTab('workers')">
+                Master Kru (${AppState.workers.length})
+              </button>
+              <button class="segmented-btn ${initialTab === 'agencies' ? 'active' : ''}" id="tab-master-agencies" onclick="App.switchMasterSubTab('agencies')">
+                Master Agen (${AppState.agencies.length})
+              </button>
+              <button class="segmented-btn ${initialTab === 'templates' ? 'active' : ''}" id="tab-master-templates" onclick="App.switchMasterSubTab('templates')">
+                Template Itinerary (${AppState.templates.length})
+              </button>
             </div>
 
             <div id="master-subtab-content">
-              ${this.renderMasterWorkersContent()}
+              ${initialTab === 'templates' ? this.renderMasterTemplatesContent() : (initialTab === 'agencies' ? this.renderMasterAgenciesContent() : this.renderMasterWorkersContent())}
             </div>
           </div>
           <div class="modal-footer">
@@ -2600,9 +2608,20 @@ const App = {
   switchMasterSubTab(tab) {
     document.getElementById('tab-master-workers')?.classList.toggle('active', tab === 'workers');
     document.getElementById('tab-master-agencies')?.classList.toggle('active', tab === 'agencies');
+    document.getElementById('tab-master-templates')?.classList.toggle('active', tab === 'templates');
+
+    const btnWorkers = document.getElementById('tab-master-workers');
+    if (btnWorkers) btnWorkers.textContent = `Master Kru (${AppState.workers.length})`;
+    const btnAgencies = document.getElementById('tab-master-agencies');
+    if (btnAgencies) btnAgencies.textContent = `Master Agen (${AppState.agencies.length})`;
+    const btnTemplates = document.getElementById('tab-master-templates');
+    if (btnTemplates) btnTemplates.textContent = `Template Itinerary (${AppState.templates.length})`;
+
     const container = document.getElementById('master-subtab-content');
     if (container) {
-      container.innerHTML = tab === 'workers' ? this.renderMasterWorkersContent() : this.renderMasterAgenciesContent();
+      if (tab === 'workers') container.innerHTML = this.renderMasterWorkersContent();
+      else if (tab === 'agencies') container.innerHTML = this.renderMasterAgenciesContent();
+      else if (tab === 'templates') container.innerHTML = this.renderMasterTemplatesContent();
     }
   },
 
@@ -2749,6 +2768,423 @@ const App = {
         } else {
           showToast('error', 'Gagal', res.message);
         }
+      });
+    }
+  },
+
+  renderMasterTemplatesContent() {
+    const categoryLabels = {
+      'bromo_sunrise': { label: 'Sunrise Bromo', badge: '#0284c7', bg: '#e0f2fe' },
+      'milky_way': { label: 'Milky Way Night', badge: '#7c3aed', bg: '#f3e8ff' },
+      'custom_trip': { label: 'Custom / Private', badge: '#d97706', bg: '#fef3c7' },
+      'open_trip': { label: 'Open Trip', badge: '#059669', bg: '#d1fae5' }
+    };
+
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Daftar Paket & Template Itinerary</span>
+          <p style="font-size: 11px; color: #64748b; margin: 2px 0 0 0;">Kelola master paket rute, durasi, estimasi biaya operasional, dan daftar spot kunjungan.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="App.openTemplateFormModal()">
+          ${Icons.plus(13)}
+          <span>Tambah Template Baru</span>
+        </button>
+      </div>
+
+      <div class="data-table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nama Paket & Deskripsi</th>
+              <th>Kategori</th>
+              <th>Durasi</th>
+              <th>Harga Dasar</th>
+              <th>Rute & Spot</th>
+              <th style="text-align: right;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${AppState.templates.length === 0 ? `
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 24px; color: #94a3b8;">
+                  Belum ada template itinerary. Silakan klik tombol "Tambah Template Baru".
+                </td>
+              </tr>
+            ` : AppState.templates.map(t => {
+              const cat = categoryLabels[t.category] || { label: t.category, badge: '#475569', bg: '#f1f5f9' };
+              const itemCount = Array.isArray(t.items) ? t.items.length : 0;
+              const totalOpCost = Array.isArray(t.items) ? t.items.reduce((s, i) => s + (i.operationalCost || 0), 0) : 0;
+              const cleanName = (t.name || '').replace(/'/g, "\'");
+
+              return `
+                <tr>
+                  <td>
+                    <div style="font-weight: 700; color: #0f172a; font-size: 13px;">${t.name}</div>
+                    ${t.description ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px; max-width: 260px; line-height: 1.3;">${t.description}</div>` : ''}
+                  </td>
+                  <td>
+                    <span class="badge" style="background: ${cat.bg}; color: ${cat.badge}; border: 1px solid ${cat.badge}33; font-size: 10px; font-weight: 700; white-space: nowrap;">
+                      ${cat.label}
+                    </span>
+                  </td>
+                  <td><span style="font-size: 11px; font-weight: 600; color: #334155;">${t.duration || '-'}</span></td>
+                  <td><strong style="color: #0284c7; font-size: 12px;">${formatIDR(t.defaultPrice)}</strong></td>
+                  <td>
+                    <button class="btn btn-outline btn-sm" style="font-size: 10px; padding: 2px 7px;" onclick="App.previewTemplateStops('${t.id}')">
+                      ${Icons.mapPin(11, '#0284c7')}
+                      <span>${itemCount} Spot (${formatIDR(totalOpCost)})</span>
+                    </button>
+                  </td>
+                  <td style="text-align: right; white-space: nowrap;">
+                    <div style="display: inline-flex; gap: 4px;">
+                      <button class="btn btn-outline btn-sm" title="Edit Template" onclick="App.openTemplateFormModal('${t.id}')">
+                        ${Icons.edit(12, '#2563eb')}
+                      </button>
+                      <button class="btn btn-danger btn-sm" title="Hapus Template" onclick="App.deleteTemplateAction('${t.id}', '${cleanName}')">
+                        ${Icons.trash(12)}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  previewTemplateStops(id) {
+    const tpl = AppState.templates.find(t => t.id === id);
+    if (!tpl) return;
+
+    const items = Array.isArray(tpl.items) ? tpl.items : [];
+    const totalOpCost = items.reduce((s, i) => s + (i.operationalCost || 0), 0);
+
+    const modalRoot = document.getElementById('modal-root');
+    modalRoot.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-content" style="max-width: 650px;">
+          <div class="modal-header">
+            <div>
+              <div style="font-weight: 800; font-size: 16px; color: #0f172a;">${tpl.name}</div>
+              <div style="font-size: 12px; color: #64748b;">Durasi: <strong>${tpl.duration}</strong> &bull; Harga Dasar: <strong>${formatIDR(tpl.defaultPrice)}</strong></div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="App.openManageMasterModal('templates')">${Icons.x(16)}</button>
+          </div>
+          <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+              <div>
+                <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">Total Estimasi Biaya Operasional</span>
+                <div style="font-size: 16px; font-weight: 800; color: #15803d;">${formatIDR(totalOpCost)}</div>
+              </div>
+              <span class="badge" style="background: #ffffff; color: #166534; border: 1px solid #bbf7d0; font-weight: 700;">${items.length} Spot Kunjungan</span>
+            </div>
+
+            ${tpl.description ? `
+              <div style="font-size: 12px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; line-height: 1.4;">
+                <strong>Deskripsi Paket:</strong><br>${tpl.description}
+              </div>
+            ` : ''}
+
+            <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Rute & Titik Kunjungan (Timeline):</div>
+
+            ${items.length === 0 ? `
+              <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px;">
+                Belum ada rincian spot pada template ini.
+              </div>
+            ` : `
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${items.map((it, idx) => `
+                  <div style="display: flex; gap: 10px; align-items: flex-start; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: #0284c7; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0;">
+                      ${idx + 1}
+                    </div>
+                    <div style="flex: 1;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+                        <span style="font-weight: 700; font-size: 13px; color: #0f172a;">${it.title}</span>
+                        ${it.time ? `<span style="font-size: 11px; font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">${it.time}</span>` : ''}
+                      </div>
+                      ${it.description ? `<div style="font-size: 11px; color: #64748b; margin-top: 3px;">${it.description}</div>` : ''}
+                    </div>
+                    ${it.operationalCost ? `
+                      <div style="text-align: right; flex-shrink: 0;">
+                        <div style="font-size: 10px; color: #94a3b8;">Biaya Ops</div>
+                        <div style="font-size: 12px; font-weight: 700; color: #059669;">${formatIDR(it.operationalCost)}</div>
+                      </div>
+                    ` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+          <div class="modal-footer" style="display: flex; justify-content: space-between;">
+            <button class="btn btn-primary btn-sm" onclick="App.openTemplateFormModal('${tpl.id}')">
+              ${Icons.edit(13)}
+              <span>Edit Template Ini</span>
+            </button>
+            <button class="btn btn-outline" onclick="App.openManageMasterModal('templates')">Kembali</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  openTemplateFormModal(templateId = null) {
+    if (!AppState.currentUser || AppState.currentUser.role !== 'admin') return;
+    const tpl = templateId ? AppState.templates.find(t => t.id === templateId) : null;
+    const isEdit = !!tpl;
+    const modalTitle = isEdit ? `Edit Template: ${tpl.name}` : 'Tambah Template Itinerary Baru';
+
+    const defaultStops = isEdit ? (tpl.items || []) : [
+      { time: '00:00 - 01:00 WIB', title: 'Penjemputan Tamu di Hotel', operationalCost: 0, description: 'Briefing dan persiapan rute' },
+      { time: '03:30 - 06:00 WIB', title: 'Golden Sunrise View Point', operationalCost: 100000, description: 'Menikmati golden sunrise' },
+      { time: '06:30 - 08:30 WIB', title: 'Kawah Bromo & Lautan Pasir', operationalCost: 50000, description: 'Eksplorasi spot kawah' }
+    ];
+
+    const initialTotalOp = defaultStops.reduce((s, it) => s + (it.operationalCost || 0), 0);
+
+    const modalRoot = document.getElementById('modal-root');
+    modalRoot.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-content" style="max-width: 780px;">
+          <div class="modal-header">
+            <div>
+              <div style="font-weight: 800; font-size: 16px; color: #0f172a;">${modalTitle}</div>
+              <div style="font-size: 11px; color: #64748b;">Konfigurasi master paket wisata dan urutan timeline kunjungan</div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="App.openManageMasterModal('templates')">${Icons.x(16)}</button>
+          </div>
+          <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Nama Paket Wisata:*</label>
+                <input type="text" id="tpl-form-name" class="form-input" placeholder="Contoh: Bromo Sunrise Classic 4 Spot" value="${tpl ? (tpl.name || '').replace(/"/g, '&quot;') : ''}" required />
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Kategori Tur:*</label>
+                <select id="tpl-form-category" class="form-select">
+                  <option value="bromo_sunrise" ${tpl?.category === 'bromo_sunrise' ? 'selected' : ''}>Sunrise Bromo</option>
+                  <option value="milky_way" ${tpl?.category === 'milky_way' ? 'selected' : ''}>Milky Way Night</option>
+                  <option value="custom_trip" ${tpl?.category === 'custom_trip' ? 'selected' : ''}>Custom / Private</option>
+                  <option value="open_trip" ${tpl?.category === 'open_trip' ? 'selected' : ''}>Open Trip</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Estimasi Durasi Tur:*</label>
+                <input type="text" id="tpl-form-duration" class="form-input" placeholder="Contoh: 12 Jam (00:00 - 12:00)" value="${tpl ? (tpl.duration || '').replace(/"/g, '&quot;') : '12 Jam'}" required />
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Harga Paket Acuan (IDR):*</label>
+                <input type="number" id="tpl-form-price" class="form-input" placeholder="1750000" min="0" step="50000" value="${tpl ? tpl.defaultPrice : 1750000}" required />
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label class="form-label">Deskripsi & Keunggulan Paket:</label>
+              <textarea id="tpl-form-desc" class="form-textarea" rows="2" placeholder="Jelaskan ringkasan spot, fasilitas, dan daya tarik paket wisata ini...">${tpl ? (tpl.description || '') : ''}</textarea>
+            </div>
+
+            <!-- Dynamic Stops Section -->
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <div style="font-weight: 700; font-size: 13px; color: #0f172a;">Rute & Titik Kunjungan (Stops)</div>
+                  <div style="font-size: 11px; color: #64748b;">Urutan timeline spot dan estimasi biaya operasional per titik</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="font-size: 11px; color: #475569;">
+                    Total Biaya Ops: <strong id="template-total-op-cost" style="color: #15803d; font-size: 13px;">${formatIDR(initialTotalOp)}</strong>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="App.addTemplateStopRow()">
+                    ${Icons.plus(12)}
+                    <span>Tambah Spot</span>
+                  </button>
+                </div>
+              </div>
+
+              <div id="template-stops-list">
+                <!-- Stops rows populated below -->
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer" style="display: flex; justify-content: space-between;">
+            <button type="button" class="btn btn-outline" onclick="App.openManageMasterModal('templates')">Batal</button>
+            <button type="button" id="btn-submit-tpl" class="btn btn-primary" onclick="App.submitTemplateForm('${tpl ? tpl.id : ''}')">
+              ${Icons.check(14)}
+              <span>${isEdit ? 'Simpan Perubahan' : 'Buat Template'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Populate initial stops
+    const list = document.getElementById('template-stops-list');
+    if (list) {
+      list.innerHTML = '';
+      defaultStops.forEach(stop => {
+        App.addTemplateStopRow(stop);
+      });
+    }
+  },
+
+  addTemplateStopRow(stop = null) {
+    const list = document.getElementById('template-stops-list');
+    if (!list) return;
+    const index = list.children.length;
+    const div = document.createElement('div');
+    div.className = 'template-stop-row';
+    div.style = 'background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 8px; position: relative;';
+    
+    const safeTitle = (stop?.title || '').replace(/"/g, '&quot;');
+    const safeTime = (stop?.time || '').replace(/"/g, '&quot;');
+    const safeDesc = (stop?.description || '').replace(/"/g, '&quot;');
+    const safeCost = stop?.operationalCost ?? 0;
+
+    div.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span class="stop-order-label" style="font-size: 11px; font-weight: 700; color: #0284c7;">Titik #${index + 1}</span>
+        <button type="button" class="btn btn-danger btn-sm" style="padding: 2px 6px; font-size: 10px;" onclick="App.removeTemplateStopRow(this)">
+          ${Icons.trash(12)}
+        </button>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px 1fr 130px; gap: 8px; margin-bottom: 6px;">
+        <div>
+          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Waktu / Jam:</label>
+          <input type="text" class="form-input stop-time" placeholder="03:30 - 06:00 WIB" value="${safeTime}" style="font-size: 12px; padding: 5px 8px;" />
+        </div>
+        <div>
+          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Nama Titik / Aktivitas:*</label>
+          <input type="text" class="form-input stop-title" placeholder="Nama spot wisata / aktivitas" value="${safeTitle}" style="font-size: 12px; padding: 5px 8px;" required />
+        </div>
+        <div>
+          <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Ops (IDR):</label>
+          <input type="number" class="form-input stop-cost" placeholder="0" min="0" step="1000" value="${safeCost}" style="font-size: 12px; padding: 5px 8px;" oninput="App.updateTemplateOpCostSummary()" />
+        </div>
+      </div>
+      <div>
+        <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Keterangan / Briefing:</label>
+        <input type="text" class="form-input stop-desc" placeholder="Catatan aktivitas atau tiket masuk" value="${safeDesc}" style="font-size: 12px; padding: 5px 8px;" />
+      </div>
+    `;
+    list.appendChild(div);
+    App.updateTemplateOpCostSummary();
+  },
+
+  removeTemplateStopRow(btn) {
+    const row = btn.closest('.template-stop-row');
+    if (row) {
+      row.remove();
+      const list = document.getElementById('template-stops-list');
+      if (list) {
+        list.querySelectorAll('.template-stop-row').forEach((r, idx) => {
+          const lbl = r.querySelector('.stop-order-label');
+          if (lbl) lbl.textContent = `Titik #${idx + 1}`;
+        });
+      }
+      App.updateTemplateOpCostSummary();
+    }
+  },
+
+  updateTemplateOpCostSummary() {
+    let total = 0;
+    document.querySelectorAll('#template-stops-list .stop-cost').forEach(input => {
+      total += parseFloat(input.value) || 0;
+    });
+    const indicator = document.getElementById('template-total-op-cost');
+    if (indicator) {
+      indicator.textContent = formatIDR(total);
+    }
+  },
+
+  async submitTemplateForm(templateId = null) {
+    const nameInput = document.getElementById('tpl-form-name');
+    const catInput = document.getElementById('tpl-form-category');
+    const durInput = document.getElementById('tpl-form-duration');
+    const priceInput = document.getElementById('tpl-form-price');
+    const descInput = document.getElementById('tpl-form-desc');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (!name) {
+      showToast('warning', 'Validasi Gagal', 'Nama template itinerary wajib diisi.');
+      nameInput?.focus();
+      return;
+    }
+
+    const category = catInput ? catInput.value : 'bromo_sunrise';
+    const duration = durInput ? durInput.value.trim() : '12 Jam';
+    const defaultPrice = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
+    const description = descInput ? descInput.value.trim() : '';
+
+    const stopRows = document.querySelectorAll('#template-stops-list .template-stop-row');
+    const items = [];
+    stopRows.forEach(row => {
+      const title = row.querySelector('.stop-title')?.value.trim();
+      if (title) {
+        items.push({
+          time: row.querySelector('.stop-time')?.value.trim() || '',
+          title: title,
+          operationalCost: parseFloat(row.querySelector('.stop-cost')?.value) || 0,
+          description: row.querySelector('.stop-desc')?.value.trim() || ''
+        });
+      }
+    });
+
+    const payload = {
+      name,
+      category,
+      duration,
+      defaultPrice,
+      description,
+      items
+    };
+
+    const submitBtn = document.getElementById('btn-submit-tpl');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Menyimpan...';
+    }
+
+    try {
+      const res = await API.saveTemplate(payload, templateId || null);
+      if (res.success || res.template) {
+        showToast('success', templateId ? 'Template Diperbarui' : 'Template Dibuat', `Template "${name}" berhasil disimpan.`);
+        await App.loadInitialData();
+        App.openManageMasterModal('templates');
+      } else {
+        showToast('error', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan sistem.');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Simpan Template';
+        }
+      }
+    } catch (err) {
+      showToast('error', 'Kesalahan Jaringan', err.message);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Simpan Template';
+      }
+    }
+  },
+
+  deleteTemplateAction(id, name) {
+    if (confirm(`Apakah Anda yakin ingin menghapus template itinerary "${name}"?
+Data rute dan titik kunjungan untuk template ini akan dihapus.`)) {
+      API.deleteTemplate(id).then(async (res) => {
+        if (res.success) {
+          showToast('success', 'Template Dihapus', `Template "${name}" telah dihapus.`);
+          await App.loadInitialData();
+          App.openManageMasterModal('templates');
+        } else {
+          showToast('error', 'Gagal Menghapus', res.message || 'Tidak dapat menghapus template.');
+        }
+      }).catch(err => {
+        showToast('error', 'Kesalahan', err.message);
       });
     }
   },

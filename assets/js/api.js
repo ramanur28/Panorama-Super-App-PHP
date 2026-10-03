@@ -176,7 +176,29 @@ const API = {
 
   async getTemplates() {
     const res = await this.request('templates.php');
-    return (res.ok && Array.isArray(res.data)) ? res.data : [];
+    if (res.ok && Array.isArray(res.data)) {
+      localStorage.setItem('panorama_cached_templates', JSON.stringify(res.data));
+      return res.data;
+    }
+    const cached = localStorage.getItem('panorama_cached_templates');
+    return cached ? JSON.parse(cached) : [];
+  },
+
+  async saveTemplate(templateData, id = null) {
+    const endpoint = id ? `templates.php?id=${id}&action=update` : 'templates.php';
+    const res = await this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ ...templateData, id })
+    });
+    return res.data || { success: false, message: 'Gagal menyimpan template itinerary' };
+  },
+
+  async deleteTemplate(id) {
+    const res = await this.request(`templates.php?id=${id}&action=delete`, {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
+    return res.data || { success: false, message: 'Gagal menghapus template itinerary' };
   },
 
   async getAnalyticsPnL() {
