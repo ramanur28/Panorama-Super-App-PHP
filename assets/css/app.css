@@ -188,10 +188,20 @@ body {
   color: var(--text-main);
 }
 
-.metric-sub {
+.metric-sub, .metric-subtitle {
   font-size: 11px;
   color: var(--text-faint);
   margin-top: 2px;
+}
+
+.metric-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
 /* Badges */
@@ -209,9 +219,9 @@ body {
 .badge-internal { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
 .badge-external { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
 .badge-admin { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
-.badge-jeep { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; }
-.badge-field { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-.badge-photo { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+.badge-jeep, .badge-driver_jeep { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; }
+.badge-field, .badge-lapangan, .badge-driver_lapangan, .badge-shuttle { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.badge-photo, .badge-photographer, .badge-fotografer { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
 
 .status-badge {
   padding: 4px 10px;
@@ -229,7 +239,7 @@ body {
 
 .pay-paid { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
 .pay-unpaid { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-.pay-deposit { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+.pay-deposit, .pay-pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
 
 /* Buttons */
 .btn {
@@ -247,8 +257,57 @@ body {
   text-decoration: none;
 }
 
-.btn-primary { background: var(--color-primary); color: #ffffff; }
-.btn-primary:hover { background: var(--color-primary-dark); }
+.btn-primary, .btn.btn-primary { background: var(--color-primary); color: #ffffff !important; }
+.btn-primary:hover, .btn.btn-primary:hover { background: var(--color-primary-dark); color: #ffffff !important; }
+
+/* Dedicated high-contrast filter chips for status & availability */
+.filter-chip-ready {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+.filter-chip-ready:hover {
+  background: #dcfce7;
+  color: #15803d;
+}
+.filter-chip-ready.active {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
+  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.3);
+}
+
+.filter-chip-busy {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+.filter-chip-busy:hover {
+  background: #fef3c7;
+  color: #b45309;
+}
+.filter-chip-busy.active {
+  background: #d97706 !important;
+  color: #ffffff !important;
+  border-color: #b45309 !important;
+  box-shadow: 0 1px 3px rgba(217, 119, 6, 0.3);
+}
+
+.filter-chip-full {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+.filter-chip-full:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.filter-chip-full.active {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
+}
 .btn-outline { background: #ffffff; border-color: var(--border-glass); color: var(--text-main); }
 .btn-outline:hover { background: var(--bg-secondary); }
 .btn-danger { background: #fee2e2; color: #dc2626; border-color: #fecaca; }

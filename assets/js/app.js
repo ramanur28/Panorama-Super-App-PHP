@@ -860,18 +860,18 @@ const App = {
         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-top: 6px; border-top: 1px solid var(--border-glass);">
           <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748b; margin-right: 4px;">Role:</span>
-            <button class="btn btn-sm ${AppState.crewRole === 'all' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewRole('all')">Semua Role</button>
-            <button class="btn btn-sm ${AppState.crewRole === 'driver_jeep' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewRole('driver_jeep')">Driver Jeep</button>
-            <button class="btn btn-sm ${AppState.crewRole === 'driver_lapangan' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewRole('driver_lapangan')">Driver Shuttle</button>
-            <button class="btn btn-sm ${AppState.crewRole === 'photographer' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewRole('photographer')">Fotografer</button>
+            <button class="btn btn-sm ${AppState.crewRole === 'all' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; ${AppState.crewRole === 'all' ? 'color: #ffffff !important;' : ''}" onclick="App.setCrewRole('all')">Semua Role</button>
+            <button class="btn btn-sm ${AppState.crewRole === 'driver_jeep' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; ${AppState.crewRole === 'driver_jeep' ? 'color: #ffffff !important;' : ''}" onclick="App.setCrewRole('driver_jeep')">Driver Jeep</button>
+            <button class="btn btn-sm ${AppState.crewRole === 'driver_lapangan' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; ${AppState.crewRole === 'driver_lapangan' ? 'color: #ffffff !important;' : ''}" onclick="App.setCrewRole('driver_lapangan')">Driver Shuttle</button>
+            <button class="btn btn-sm ${AppState.crewRole === 'photographer' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; ${AppState.crewRole === 'photographer' ? 'color: #ffffff !important;' : ''}" onclick="App.setCrewRole('photographer')">Fotografer</button>
           </div>
 
           <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
             <span style="font-size: 11px; font-weight: 700; color: #64748b; margin-right: 4px;">Status:</span>
-            <button class="btn btn-sm ${AppState.crewAvailability === 'all' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewAvailability('all')">Semua</button>
-            <button class="btn btn-sm ${AppState.crewAvailability === 'available' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; color: #15803d;" onclick="App.setCrewAvailability('available')">🟢 Siap (0/2)</button>
-            <button class="btn btn-sm ${AppState.crewAvailability === 'busy' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; color: #b45309;" onclick="App.setCrewAvailability('busy')">🟡 Sibuk (1/2)</button>
-            <button class="btn btn-sm ${AppState.crewAvailability === 'full' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; color: #dc2626;" onclick="App.setCrewAvailability('full')">🔴 Penuh (2/2)</button>
+            <button class="btn btn-sm ${AppState.crewAvailability === 'all' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px; ${AppState.crewAvailability === 'all' ? 'color: #ffffff !important;' : ''}" onclick="App.setCrewAvailability('all')">Semua</button>
+            <button class="btn btn-sm filter-chip-ready ${AppState.crewAvailability === 'available' ? 'active' : ''}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewAvailability('available')">🟢 Siap (0/2)</button>
+            <button class="btn btn-sm filter-chip-busy ${AppState.crewAvailability === 'busy' ? 'active' : ''}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewAvailability('busy')">🟡 Sibuk (1/2)</button>
+            <button class="btn btn-sm filter-chip-full ${AppState.crewAvailability === 'full' ? 'active' : ''}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setCrewAvailability('full')">🔴 Penuh (2/2)</button>
           </div>
         </div>
       </div>
@@ -1416,13 +1416,20 @@ const App = {
     else if (role === 'driver_lapangan') { fee = t.fieldDriverFee; pStatus = t.fieldPayrollStatus; }
     else if (role === 'photographer') { fee = t.photographerFee; pStatus = t.photographerPayrollStatus; }
 
+    const statusMap = {
+      scheduled: 'Terjadwal',
+      in_progress: 'Berlangsung',
+      completed: 'Selesai',
+      cancelled: 'Dibatalkan'
+    };
+
     return `
       <div class="trip-card">
         <div class="trip-header">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span class="trip-code">${t.code}</span>
-              <span class="status-badge status-${t.tripStatus}">${t.tripStatus}</span>
+              <span class="status-badge status-${t.tripStatus}">${statusMap[t.tripStatus] || t.tripStatus}</span>
             </div>
             <div class="trip-package" style="margin-top: 2px;">${t.tourPackage}</div>
           </div>
@@ -3686,6 +3693,16 @@ const App = {
     }
   },
 
+  renderRoleBadge(role) {
+    const roleBadges = {
+      admin: '<span class="badge badge-admin">Admin</span>',
+      driver_jeep: '<span class="badge badge-jeep">Driver Jeep</span>',
+      driver_lapangan: '<span class="badge badge-field">Driver Lapangan</span>',
+      photographer: '<span class="badge badge-photo">Photographer</span>'
+    };
+    return roleBadges[role] || `<span class="badge badge-field">${role}</span>`;
+  },
+
   renderMasterWorkersContent() {
     return `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -3709,7 +3726,7 @@ const App = {
             ${AppState.workers.map(w => `
               <tr>
                 <td><strong>${w.name}</strong></td>
-                <td><span class="badge badge-${w.role.replace('driver_', '')}">${w.role}</span></td>
+                <td>${this.renderRoleBadge(w.role)}</td>
                 <td><code>${w.username || '-'}</code></td>
                 <td>${w.vehicleUnit || '-'}</td>
                 <td>${formatIDR(w.baseRatePerTrip)}</td>
