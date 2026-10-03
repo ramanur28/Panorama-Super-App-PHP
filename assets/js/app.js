@@ -2998,7 +2998,7 @@ const App = {
             ${isTemplateMode ? `
               <!-- Template Master Fields Config -->
               <div style="background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                <div class="builder-top-grid">
                   <div>
                     <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Nama Paket Wisata / Template:*</label>
                     <input type="text" id="modal-builder-tour-package" class="form-input" style="font-size: 12px;" value="${(s.tourPackage || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Bromo Sunrise Classic 4 Spot" required />
@@ -3014,7 +3014,7 @@ const App = {
                   </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="builder-two-col">
                   <div>
                     <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Estimasi Durasi Tur:*</label>
                     <input type="text" id="modal-builder-duration" class="form-input" style="font-size: 12px;" value="${(s.duration || '').replace(/"/g, '&quot;')}" placeholder="Contoh: 12 Jam / 2 Hari 1 Malam" required oninput="App._builderState.duration = this.value" />
@@ -3031,24 +3031,24 @@ const App = {
                 </div>
 
                 <!-- Preset Cloner -->
-                <div style="display: flex; align-items: center; gap: 8px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                <div class="builder-preset-strip">
                   <span style="font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap;">Salin dari Preset Lain:</span>
-                  <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 4px 8px;">
+                  <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 4px 8px; flex: 1; min-width: 160px;">
                     <option value="">-- Pilih Template Acuan (Opsional) --</option>
                     ${AppState.templates.filter(t => t.id !== s.templateId).map(tpl => `
                       <option value="${tpl.id}">${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})</option>
                     `).join('')}
                   </select>
-                  <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; height: 30px;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
+                  <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; height: 32px; white-space: nowrap;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
                     ${Icons.refreshCw(12)} <span>Muat</span>
                   </button>
-                  <span style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Salin struktur rute dari master lain</span>
+                  <span class="preset-note" style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Salin struktur rute dari master lain</span>
                 </div>
               </div>
             ` : `
               <!-- Trip Itinerary Config -->
               <div style="background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                <div class="builder-top-grid">
                   <div>
                     <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Nama Paket Wisata / Perjalanan:</label>
                     <input type="text" id="modal-builder-tour-package" class="form-input" style="font-size: 12px;" value="${(s.tourPackage || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Bromo Sunrise Classic 4 Spot" />
@@ -3060,9 +3060,9 @@ const App = {
                 </div>
 
                 <!-- Preset Loader Strip -->
-                <div style="display: flex; align-items: center; gap: 8px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                <div class="builder-preset-strip">
                   <span style="font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap;">Gunakan Preset:</span>
-                  <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 5px 8px;">
+                  <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 5px 8px; flex: 1; min-width: 160px;">
                     <option value="">-- Pilih Template Itinerary Master --</option>
                     ${AppState.templates.map(tpl => `
                       <option value="${tpl.id}">${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})</option>
@@ -3071,15 +3071,15 @@ const App = {
                   <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; white-space: nowrap; height: 32px;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
                     ${Icons.refreshCw(12)} <span>Muat Preset</span>
                   </button>
-                  <span style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Template master tidak akan tertimpa.</span>
+                  <span class="preset-note" style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Template master tidak akan tertimpa.</span>
                 </div>
               </div>
             `}
 
             <!-- Multi-Day Tabs Header -->
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div id="builder-day-tabs" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
-              <button type="button" class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; font-weight: 700; font-size: 11px; padding: 5px 10px;" onclick="App.addBuilderDay()">
+            <div class="builder-day-tabs-wrapper">
+              <div id="builder-day-tabs" class="builder-day-tabs-scroll"></div>
+              <button type="button" class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; font-weight: 700; font-size: 11px; padding: 5px 10px; white-space: nowrap; flex-shrink: 0;" onclick="App.addBuilderDay()">
                 ${Icons.plus(12)} <span>+ Tambah Hari</span>
               </button>
             </div>
@@ -3090,15 +3090,15 @@ const App = {
             </div>
 
             <!-- Total Budget Summary Card -->
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div class="builder-totals-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">
                 Rincian Biaya Rute Seluruh Hari:
               </div>
-              <div style="display: flex; gap: 14px; font-size: 11px; flex-wrap: wrap;">
+              <div class="builder-totals-list" style="display: flex; gap: 14px; font-size: 11px; flex-wrap: wrap;">
                 <span>🛠️ Total Ops: <strong id="builder-total-op" style="color: #dc2626;">Rp 0</strong></span>
                 <span>🎟️ Total Tiket: <strong id="builder-total-ticket" style="color: #ea580c;">Rp 0</strong></span>
                 <span>🏨 Total Hotel: <strong id="builder-total-hotel" style="color: #7c3aed;">Rp 0</strong></span>
-                <span style="padding-left: 6px; border-left: 2px solid #86efac;">💎 Grand Total: <strong id="builder-grand-total" style="color: #166534; font-size: 13px;">Rp 0</strong></span>
+                <span class="builder-grand-total-item" style="padding-left: 6px; border-left: 2px solid #86efac;">💎 Grand Total: <strong id="builder-grand-total" style="color: #166534; font-size: 13px;">Rp 0</strong></span>
               </div>
             </div>
 
@@ -3139,7 +3139,7 @@ const App = {
           </div>
 
           <!-- Modal Footer -->
-          <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-glass); display: flex; justify-content: space-between;">
+          <div class="modal-footer builder-modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-glass); display: flex; justify-content: space-between;">
             <button type="button" class="btn btn-outline" onclick="App.closeItineraryBuilderModal()">Batal</button>
             <button type="button" id="btn-submit-builder" class="btn btn-primary" onclick="App.saveItineraryBuilder()" style="display: flex; align-items: center; gap: 6px; font-weight: 700;">
               ${Icons.check(14)} <span>${isTemplateMode ? (isEditTpl ? 'Simpan Perubahan Master' : 'Buat Template Master') : 'Simpan & Terapkan ke Trip'}</span>
@@ -3173,19 +3173,19 @@ const App = {
     if (!curDay) return;
 
     container.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+      <div class="builder-day-header">
         <div style="flex: 1;">
           <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">
             Tema / Rencana Hari ${curDay.day}:
           </label>
           <input type="text" class="form-input" style="font-size: 12px; padding: 5px 8px; font-weight: 600;" value="${(curDay.title || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Eksplorasi Bromo & Kawah Adventure" oninput="App.onActiveDayTitleChange(this.value)" />
         </div>
-        <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; height: 32px; margin-top: 14px; white-space: nowrap;" onclick="App.addBuilderActivity()">
+        <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; height: 32px; white-space: nowrap;" onclick="App.addBuilderActivity()">
           ${Icons.plus(12)} <span>+ Tambah Kegiatan di Hari Ini</span>
         </button>
       </div>
 
-      <div id="builder-activities-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 40vh; overflow-y: auto; padding-right: 4px;">
+      <div id="builder-activities-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 42vh; overflow-y: auto; padding-right: 4px;">
         ${curDay.activities.length === 0 ? `
           <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px; font-style: italic;">
             Belum ada kegiatan di Hari ${curDay.day}. Klik tombol "+ Tambah Kegiatan di Hari Ini" di atas.
@@ -3200,7 +3200,7 @@ const App = {
             </div>
 
             <!-- Time & Activity Title -->
-            <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px;">
+            <div class="builder-act-header-grid">
               <div>
                 <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Jam / Waktu (Opsional):</label>
                 <input type="text" class="form-input act-time" style="font-size: 11px; padding: 4px 8px;" placeholder="03:30 / Fleksibel" value="${(act.time || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
@@ -3228,7 +3228,7 @@ const App = {
             </div>
 
             <!-- Notes & Operational Description -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="builder-act-notes-grid">
               <div>
                 <label style="font-size: 10px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px;">Keterangan Operasional:</label>
                 <input type="text" class="form-input act-op-desc" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Sewa jeep, armada shuttle, bensin" value="${(act.operationalDesc || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
