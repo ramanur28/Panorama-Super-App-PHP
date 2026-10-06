@@ -39,8 +39,16 @@ if ($method === 'GET' && empty($action) && empty($tripId)) {
         $params[] = $workerId;
         $params[] = '%"dayFieldDriverId":"' . $workerId . '"%';
     } elseif ($role === 'photographer' && $workerId) {
-        $sql .= " AND photographer_id = ?";
+        $sql .= " AND (photographer_id = ? OR raw_itinerary LIKE ?)";
         $params[] = $workerId;
+        $params[] = '%"photographerId":"' . $workerId . '"%';
+    } elseif ($role === 'guide' && $workerId) {
+        $gw = db_query_one("SELECT name FROM users WHERE id = ?", [$workerId]);
+        if ($gw) {
+            $sql .= " AND (guide_name LIKE ? OR raw_itinerary LIKE ?)";
+            $params[] = '%' . $gw['name'] . '%';
+            $params[] = '%' . $gw['name'] . '%';
+        }
     }
 
     // Additional filters
@@ -126,6 +134,7 @@ if ($method === 'POST' && empty($action)) {
           jeep_driver_id, jeep_driver_name, jeep_unit, jeep_fee, jeep_status, jeep_payroll_status,
           field_driver_id, field_driver_name, field_driver_unit, field_driver_fee, field_driver_status, field_payroll_status,
           photographer_id, photographer_name, photographer_fee, photographer_status, photographer_payroll_status, photo_album_url,
+          guide_name, guide_fee, guide_payroll_status,
           operational_cost, itinerary_template_id, trip_status, raw_itinerary
         ) VALUES (
           ?, ?, ?, ?, ?, ?, ?, ?, ?,
@@ -133,6 +142,7 @@ if ($method === 'POST' && empty($action)) {
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?,
+          ?, ?, ?,
           ?, ?, ?, ?
         )
     ";
@@ -171,6 +181,9 @@ if ($method === 'POST' && empty($action)) {
         $body['photographerStatus'] ?? 'assigned',
         $body['photographerPayrollStatus'] ?? 'unpaid',
         $body['photoAlbumUrl'] ?? null,
+        $body['guideName'] ?? null,
+        (float)($body['guideFee'] ?? 0),
+        $body['guidePayrollStatus'] ?? 'unpaid',
         (float)($body['operationalCost'] ?? 0),
         $body['itineraryTemplateId'] ?? null,
         $body['tripStatus'] ?? 'scheduled',
@@ -260,6 +273,9 @@ if ($method === 'PUT' || ($method === 'POST' && $action === 'update')) {
         'photographerStatus' => 'photographer_status',
         'photographerPayrollStatus' => 'photographer_payroll_status',
         'photoAlbumUrl' => 'photo_album_url',
+        'guideName' => 'guide_name',
+        'guideFee' => 'guide_fee',
+        'guidePayrollStatus' => 'guide_payroll_status',
         'operationalCost' => 'operational_cost',
         'itineraryTemplateId' => 'itinerary_template_id',
         'tripStatus' => 'trip_status',

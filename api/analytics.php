@@ -32,6 +32,8 @@ if ($action === 'mark_paid' && $method === 'POST') {
         db_execute("UPDATE trips SET field_payroll_status = 'paid' WHERE id = ?", [$tripId]);
     } elseif ($role === 'photographer') {
         db_execute("UPDATE trips SET photographer_payroll_status = 'paid' WHERE id = ?", [$tripId]);
+    } elseif ($role === 'guide') {
+        db_execute("UPDATE trips SET guide_payroll_status = 'paid' WHERE id = ?", [$tripId]);
     }
 
     log_audit($tripId, null, 'MARK_PAYROLL_PAID', ['role' => $role]);
@@ -49,6 +51,7 @@ if ($type === 'pnl') {
     $jeepCosts = ['internal' => 0.0, 'external' => 0.0, 'total' => 0.0];
     $fieldDriverCosts = ['internal' => 0.0, 'external' => 0.0, 'total' => 0.0];
     $photographerCosts = ['internal' => 0.0, 'external' => 0.0, 'total' => 0.0];
+    $guideCosts = ['total' => 0.0];
     $operationalCosts = 0.0;
 
     foreach ($activeTrips as $t) {
@@ -94,10 +97,13 @@ if ($type === 'pnl') {
         }
         $photographerCosts['total'] += $pFee;
 
+        $gFee = (float)($t['guide_fee'] ?? 0);
+        $guideCosts['total'] += $gFee;
+
         $operationalCosts += (float)$t['operational_cost'];
     }
 
-    $totalExpenses = $jeepCosts['total'] + $fieldDriverCosts['total'] + $photographerCosts['total'] + $operationalCosts;
+    $totalExpenses = $jeepCosts['total'] + $fieldDriverCosts['total'] + $photographerCosts['total'] + $guideCosts['total'] + $operationalCosts;
     $netProfit = $grossRevenue - $totalExpenses;
     $realizedNetCash = $cashCollected - $totalExpenses;
     $profitMarginPercent = $grossRevenue > 0 ? round(($netProfit / $grossRevenue) * 100, 1) : 0.0;
@@ -112,6 +118,7 @@ if ($type === 'pnl') {
         'jeepCosts' => $jeepCosts,
         'fieldDriverCosts' => $fieldDriverCosts,
         'photographerCosts' => $photographerCosts,
+        'guideCosts' => $guideCosts,
         'operationalCosts' => $operationalCosts,
         'totalExpenses' => $totalExpenses,
         'netProfit' => $netProfit,
@@ -152,6 +159,10 @@ if ($type === 'payroll') {
                 $matched = true;
                 $fee = (float)$t['photographer_fee'];
                 $pStatus = $t['photographer_payroll_status'];
+            } elseif ($role === 'guide' && !empty($t['guide_name']) && (strcasecmp(trim($t['guide_name']), trim($w['name'])) === 0 || stripos($t['guide_name'], $w['name']) !== false)) {
+                $matched = true;
+                $fee = (float)($t['guide_fee'] ?? 0);
+                $pStatus = $t['guide_payroll_status'] ?? 'unpaid';
             }
 
             if ($matched) {

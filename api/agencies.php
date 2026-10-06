@@ -26,8 +26,7 @@ if ($method === 'GET') {
             'contactPerson' => $a['contact_person'] ?? '',
             'phone' => $a['phone'],
             'email' => $a['email'] ?? '',
-            'address' => $a['address'] ?? '',
-            'commissionRatePercent' => (float)$a['commission_rate_percent']
+            'address' => $a['address'] ?? ''
         ];
     }, $rows);
     json_response($agencies);
@@ -54,8 +53,8 @@ if ($method === 'POST' && empty($action) && empty($agencyId)) {
 
     $newId = 'ag-' . time();
     db_execute("
-        INSERT INTO agencies (id, name, code, contact_person, phone, email, address, commission_rate_percent)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO agencies (id, name, code, contact_person, phone, email, address)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ", [
         $newId,
         $name,
@@ -63,8 +62,7 @@ if ($method === 'POST' && empty($action) && empty($agencyId)) {
         $body['contactPerson'] ?? 'PIC Operasional',
         $phone ?: '0812-0000-0000',
         $body['email'] ?? strtolower($code) . '@travel.com',
-        $body['address'] ?? 'Kantor Rekanan',
-        (float)($body['commissionRatePercent'] ?? 10)
+        $body['address'] ?? 'Kantor Rekanan'
     ]);
 
     $created = db_query_one("SELECT * FROM agencies WHERE id = ?", [$newId]);
@@ -75,8 +73,7 @@ if ($method === 'POST' && empty($action) && empty($agencyId)) {
         'contactPerson' => $created['contact_person'],
         'phone' => $created['phone'],
         'email' => $created['email'],
-        'address' => $created['address'],
-        'commissionRatePercent' => (float)$created['commission_rate_percent']
+        'address' => $created['address']
     ]], 201);
 }
 
@@ -98,8 +95,7 @@ if ($method === 'PUT' || ($method === 'POST' && $action === 'update')) {
         'contactPerson' => 'contact_person',
         'phone' => 'phone',
         'email' => 'email',
-        'address' => 'address',
-        'commissionRatePercent' => 'commission_rate_percent'
+        'address' => 'address'
     ];
 
     foreach ($fields as $jsKey => $col) {
@@ -122,8 +118,7 @@ if ($method === 'PUT' || ($method === 'POST' && $action === 'update')) {
         'contactPerson' => $updated['contact_person'],
         'phone' => $updated['phone'],
         'email' => $updated['email'],
-        'address' => $updated['address'],
-        'commissionRatePercent' => (float)$updated['commission_rate_percent']
+        'address' => $updated['address']
     ]]);
 }
 

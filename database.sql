@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(32) NOT NULL,
   pin VARCHAR(64) NOT NULL DEFAULT '123456',
   name VARCHAR(128) NOT NULL,
-  role ENUM('admin', 'driver_jeep', 'driver_lapangan', 'photographer') NOT NULL,
+  role ENUM('admin', 'driver_jeep', 'driver_lapangan', 'photographer', 'guide') NOT NULL,
   type ENUM('internal', 'external') NOT NULL DEFAULT 'internal',
   vehicle_unit VARCHAR(128) DEFAULT NULL,
   avatar VARCHAR(512) DEFAULT NULL,
@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS agencies (
   phone VARCHAR(32) NOT NULL,
   email VARCHAR(128) DEFAULT NULL,
   address TEXT DEFAULT NULL,
-  commission_rate_percent DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_agencies_code (code)
@@ -106,6 +105,11 @@ CREATE TABLE IF NOT EXISTS trips (
   photographer_payroll_status ENUM('unpaid', 'paid') NOT NULL DEFAULT 'unpaid',
   photo_album_url VARCHAR(512) DEFAULT NULL,
   
+  -- Penugasan Guide (Opsional)
+  guide_name VARCHAR(128) DEFAULT NULL,
+  guide_fee DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  guide_payroll_status ENUM('unpaid', 'paid') NOT NULL DEFAULT 'unpaid',
+  
   -- Rincian Biaya Operasional & Itinerary
   operational_cost DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
   itinerary_template_id VARCHAR(64) DEFAULT NULL,
@@ -147,7 +151,16 @@ VALUES
 ('w-field-1', 'rian', 'rian@panoramatour.com', '0821-6677-8899', '123456', 'Rian Hidayat', 'driver_lapangan', 'internal', 'HiAce Shuttle 02 (N 7788 OP)', NULL, 175000.00, 1),
 ('w-field-2', 'agus', 'agus@panoramatour.com', '0819-3344-1122', '123456', 'Agus Setiawan (Sewa)', 'driver_lapangan', 'external', 'Innova Reborn (N 1122 TR)', NULL, 200000.00, 1),
 ('w-photo-1', 'dimas', 'dimas@panoramatour.com', '0812-9988-7766', '123456', 'Dimas Anggara', 'photographer', 'internal', 'Sony A7 IV + Lens Kit', NULL, 200000.00, 1),
-('w-photo-2', 'fajar', 'fajar@panoramatour.com', '0878-5544-3322', '123456', 'Fajar Snap (Freelance)', 'photographer', 'external', 'Canon R6 + Drone Mini 4', NULL, 250000.00, 1)
+('w-photo-2', 'fajar', 'fajar@panoramatour.com', '0878-5544-3322', '123456', 'Fajar Snap (Freelance)', 'photographer', 'external', 'Canon R6 + Drone Mini 4', NULL, 250000.00, 1),
+('w-field-yoyok', 'yoyok', 'yoyok@panoramatour.com', '0821-5501-1001', '123456', 'Yoyok', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', NULL, 175000.00, 1),
+('w-field-didik', 'didik_driver', 'didik.driver@panoramatour.com', '0821-5501-1002', '123456', 'Didik Pranoto', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', NULL, 175000.00, 1),
+('w-field-andri', 'andri_driver', 'andri.driver@panoramatour.com', '0821-5501-1003', '123456', 'Andri', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', NULL, 175000.00, 1),
+('w-field-kurniatrans', 'kurniatrans', 'kurniatrans@panoramatour.com', '0821-5501-1004', '123456', 'Kurnia Trans', 'driver_lapangan', 'external', 'Armada Shuttle Kurnia Trans', NULL, 200000.00, 1),
+('w-photo-annur', 'annur', 'annur@panoramatour.com', '0822-6601-2001', '123456', 'An-nur', 'photographer', 'internal', 'Camera Kit & Dokumentasi', NULL, 200000.00, 1),
+('w-photo-ferdy', 'ferdy', 'ferdy@panoramatour.com', '0822-6601-2002', '123456', 'Ferdy', 'photographer', 'internal', 'Camera Kit & Dokumentasi', NULL, 200000.00, 1),
+('w-photo-andy', 'andy', 'andy@panoramatour.com', '0822-6601-2003', '123456', 'Andy', 'photographer', 'internal', 'Camera Kit & Dokumentasi', NULL, 200000.00, 1),
+('w-photo-andri', 'andri_photo', 'andri.photo@panoramatour.com', '0822-6601-2004', '123456', 'Andri', 'photographer', 'internal', 'Camera Kit & Dokumentasi', NULL, 200000.00, 1),
+('w-photo-didik', 'didik_photo', 'didik.photo@panoramatour.com', '0822-6601-2005', '123456', 'Didik Pranoto', 'photographer', 'internal', 'Camera Kit & Dokumentasi', NULL, 200000.00, 1)
 ON DUPLICATE KEY UPDATE
   name = VALUES(name), role = VALUES(role), phone = VALUES(phone),
   vehicle_unit = VALUES(vehicle_unit), base_rate_per_trip = VALUES(base_rate_per_trip);
@@ -155,15 +168,15 @@ ON DUPLICATE KEY UPDATE
 -- =========================================================================
 -- SEED DATA: AGENCIES (Mitra Agen B2B)
 -- =========================================================================
-INSERT INTO agencies (id, name, code, contact_person, phone, email, address, commission_rate_percent)
+INSERT INTO agencies (id, name, code, contact_person, phone, email, address)
 VALUES
-('ag-direct', 'Tamu Mandiri (Direct / Walk-In)', 'DIRECT', 'Front Desk', '0812-0000-1111', 'booking@panoramatour.com', 'Kantor Operasional Sukapura', 0.00),
-('ag-1', 'Nusantara Tour & Travel', 'AG-01', 'Ibu Rina', '0812-3322-1100', 'rina@nusantaratour.com', 'Jl. Ijen No. 45, Malang', 10.00),
-('ag-2', 'Bromo Explorer Agency', 'AG-02', 'Bpk. Doni', '0821-4455-6677', 'ops@bromoexplorer.id', 'Jl. Basuki Rahmat 12, Surabaya', 12.00),
-('ag-3', 'Java Heritage Trip', 'AG-03', 'Mbak Citra', '0856-7788-9900', 'hello@javatrip.com', 'Jl. Malioboro No. 10, Yogyakarta', 10.00)
+('ag-direct', 'Tamu Mandiri (Direct / Walk-In)', 'DIRECT', 'Front Desk', '0812-0000-1111', 'booking@panoramatour.com', 'Kantor Operasional Sukapura'),
+('ag-1', 'Nusantara Tour & Travel', 'AG-01', 'Ibu Rina', '0812-3322-1100', 'rina@nusantaratour.com', 'Jl. Ijen No. 45, Malang'),
+('ag-2', 'Bromo Explorer Agency', 'AG-02', 'Bpk. Doni', '0821-4455-6677', 'ops@bromoexplorer.id', 'Jl. Basuki Rahmat 12, Surabaya'),
+('ag-3', 'Java Heritage Trip', 'AG-03', 'Mbak Citra', '0856-7788-9900', 'hello@javatrip.com', 'Jl. Malioboro No. 10, Yogyakarta')
 ON DUPLICATE KEY UPDATE
   name = VALUES(name), code = VALUES(code), contact_person = VALUES(contact_person),
-  phone = VALUES(phone), commission_rate_percent = VALUES(commission_rate_percent);
+  phone = VALUES(phone);
 
 -- =========================================================================
 -- SEED DATA: ITINERARY TEMPLATES

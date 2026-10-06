@@ -38,6 +38,53 @@ if ($action === 'run' && $testPdo) {
         // Execute SQL statements
         $testPdo->exec($sql);
         
+        // Auto-migration for existing installations
+        try {
+            $guideCol = $testPdo->query("SHOW COLUMNS FROM trips LIKE 'guide_name'")->fetchAll();
+            if (empty($guideCol)) {
+                $testPdo->exec("ALTER TABLE trips ADD COLUMN guide_name VARCHAR(128) DEFAULT NULL AFTER photo_album_url");
+                $testPdo->exec("ALTER TABLE trips ADD COLUMN guide_fee DECIMAL(12, 2) NOT NULL DEFAULT 0.00 AFTER guide_name");
+                $messages[] = "Kolom `guide_name` & `guide_fee` berhasil ditambahkan ke tabel `trips`.";
+            }
+            $guidePayCol = $testPdo->query("SHOW COLUMNS FROM trips LIKE 'guide_payroll_status'")->fetchAll();
+            if (empty($guidePayCol)) {
+                $testPdo->exec("ALTER TABLE trips ADD COLUMN guide_payroll_status ENUM('unpaid', 'paid') NOT NULL DEFAULT 'unpaid' AFTER guide_fee");
+                $messages[] = "Kolom `guide_payroll_status` berhasil ditambahkan ke tabel `trips`.";
+            }
+            $userRoleCol = $testPdo->query("SHOW COLUMNS FROM users LIKE 'role'")->fetch();
+            if ($userRoleCol && strpos($userRoleCol['Type'], 'guide') === false) {
+                $testPdo->exec("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'driver_jeep', 'driver_lapangan', 'photographer', 'guide') NOT NULL");
+                $messages[] = "Role `guide` berhasil ditambahkan ke tabel `users`.";
+            }
+
+            // Auto-sync driver lapangan & fotografer kru operasional
+            $crewSeeds = [
+                ['w-field-yoyok', 'yoyok', 'yoyok@panoramatour.com', '0821-5501-1001', '123456', 'Yoyok', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', 175000.00],
+                ['w-field-didik', 'didik_driver', 'didik.driver@panoramatour.com', '0821-5501-1002', '123456', 'Didik Pranoto', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', 175000.00],
+                ['w-field-andri', 'andri_driver', 'andri.driver@panoramatour.com', '0821-5501-1003', '123456', 'Andri', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', 175000.00],
+                ['w-field-kurniatrans', 'kurniatrans', 'kurniatrans@panoramatour.com', '0821-5501-1004', '123456', 'Kurnia Trans', 'driver_lapangan', 'external', 'Armada Shuttle Kurnia Trans', 200000.00],
+                ['w-photo-annur', 'annur', 'annur@panoramatour.com', '0822-6601-2001', '123456', 'An-nur', 'photographer', 'internal', 'Camera Kit & Dokumentasi', 200000.00],
+                ['w-photo-ferdy', 'ferdy', 'ferdy@panoramatour.com', '0822-6601-2002', '123456', 'Ferdy', 'photographer', 'internal', 'Camera Kit & Dokumentasi', 200000.00],
+                ['w-photo-andy', 'andy', 'andy@panoramatour.com', '0822-6601-2003', '123456', 'Andy', 'photographer', 'internal', 'Camera Kit & Dokumentasi', 200000.00],
+                ['w-photo-andri', 'andri_photo', 'andri.photo@panoramatour.com', '0822-6601-2004', '123456', 'Andri', 'photographer', 'internal', 'Camera Kit & Dokumentasi', 200000.00],
+                ['w-photo-didik', 'didik_photo', 'didik.photo@panoramatour.com', '0822-6601-2005', '123456', 'Didik Pranoto', 'photographer', 'internal', 'Camera Kit & Dokumentasi', 200000.00]
+            ];
+            $stmtCrew = $testPdo->prepare("
+                INSERT INTO users (id, username, email, phone, pin, name, role, type, vehicle_unit, base_rate_per_trip, is_available)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                ON DUPLICATE KEY UPDATE
+                    name = VALUES(name), role = VALUES(role), phone = VALUES(phone),
+                    vehicle_unit = VALUES(vehicle_unit), base_rate_per_trip = VALUES(base_rate_per_trip),
+                    type = VALUES(type)
+            ");
+            foreach ($crewSeeds as $cs) {
+                $stmtCrew->execute($cs);
+            }
+            $messages[] = "Data kru operasional (Driver Lapangan & Fotografer) berhasil disinkronkan.";
+        } catch (Exception $migErr) {
+            // Ignore if column already exists or minor error
+        }
+
         $status = 'success';
         $messages[] = "Database `" . DB_NAME . "` berhasil dihubungkan dan tabel berhasil dibuat/diperbarui.";
         

@@ -80,7 +80,8 @@ function map_trip_row(array $r, ?string $viewerRole = null, ?string $viewerId = 
     $isDriverJeep = ($viewerRole === 'driver_jeep');
     $isDriverLapangan = ($viewerRole === 'driver_lapangan');
     $isPhotographer = ($viewerRole === 'photographer');
-    $isFieldRole = ($isDriverJeep || $isDriverLapangan || $isPhotographer);
+    $isGuide = ($viewerRole === 'guide');
+    $isFieldRole = ($isDriverJeep || $isDriverLapangan || $isPhotographer || $isGuide);
 
     $parsedItinerary = [];
     if (!empty($r['raw_itinerary'])) {
@@ -148,6 +149,7 @@ function map_trip_row(array $r, ?string $viewerRole = null, ?string $viewerId = 
         'photographerName' => $r['photographer_name'] ?? '',
         'photographerStatus' => $r['photographer_status'] ?? 'internal',
         'photoAlbumUrl' => $r['photo_album_url'] ?? '',
+        'guideName' => $r['guide_name'] ?? '',
     ];
 
     if (!$isFieldRole) {
@@ -180,6 +182,8 @@ function map_trip_row(array $r, ?string $viewerRole = null, ?string $viewerId = 
 
         $trip['photographerFee'] = (float)$r['photographer_fee'];
         $trip['photographerPayrollStatus'] = $r['photographer_payroll_status'];
+        $trip['guideFee'] = (float)($r['guide_fee'] ?? 0);
+        $trip['guidePayrollStatus'] = $r['guide_payroll_status'] ?? 'unpaid';
     } else {
         if ($isDriverJeep) {
             $trip['jeepFee'] = (float)$r['jeep_fee'];
@@ -192,6 +196,10 @@ function map_trip_row(array $r, ?string $viewerRole = null, ?string $viewerId = 
         if ($isPhotographer) {
             $trip['photographerFee'] = (float)$r['photographer_fee'];
             $trip['photographerPayrollStatus'] = $r['photographer_payroll_status'];
+        }
+        if ($isGuide) {
+            $trip['guideFee'] = (float)($r['guide_fee'] ?? 0);
+            $trip['guidePayrollStatus'] = $r['guide_payroll_status'] ?? 'unpaid';
         }
     }
 
