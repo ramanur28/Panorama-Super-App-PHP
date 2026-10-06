@@ -4992,9 +4992,12 @@ const App = {
 
   renderMasterWorkersContent() {
     return `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Daftar Akun Kru & Driver</span>
-        <button class="btn btn-primary btn-sm" onclick="App.promptAddWorker()">+ Tambah Kru Baru</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div>
+          <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Daftar Akun Kru & Driver</span>
+          <div style="font-size: 11px; color: #64748b;">Kelola akun login, nomor kontak, unit armada, dan tarif honor trip</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="App.openWorkerModal()">+ Tambah Kru Baru</button>
       </div>
 
       <div class="data-table-wrapper">
@@ -5004,23 +5007,35 @@ const App = {
               <th>Nama Kru</th>
               <th>Peran</th>
               <th>Username</th>
+              <th>No. WhatsApp</th>
               <th>Unit / Armada</th>
-              <th>Tarif Dasar</th>
+              <th>Tarif Honor</th>
               <th>Aksi</th>
             </tr>
           </thead>
           <tbody>
             ${AppState.workers.map(w => `
               <tr>
-                <td><strong>${w.name}</strong></td>
+                <td>
+                  <strong>${w.name}</strong>
+                  ${w.type === 'external' ? '<span class="badge" style="background: #fef3c7; color: #b45309; font-size: 9px; margin-left: 4px;">Mitra Luar</span>' : ''}
+                </td>
                 <td>${this.renderRoleBadge(w.role)}</td>
                 <td><code>${w.username || '-'}</code></td>
+                <td>${w.phone ? `<a href="${createWhatsAppUrl(w.phone, 'Halo ' + w.name)}" target="_blank" style="color: #0284c7; text-decoration: none; font-weight: 600;">${w.phone}</a>` : '-'}</td>
                 <td>${w.vehicleUnit || '-'}</td>
-                <td>${formatIDR(w.baseRatePerTrip)}</td>
+                <td><strong>${formatIDR(w.baseRatePerTrip)}</strong></td>
                 <td>
-                  ${w.id === 'w-admin-1' ? '<small style="color: #94a3b8;">Protected</small>' : `
-                    <button class="btn btn-danger btn-sm" onclick="App.deleteWorkerAction('${w.id}', '${w.name}')">${Icons.trash(12)}</button>
-                  `}
+                  <div style="display: flex; gap: 4px; align-items: center;">
+                    <button class="btn btn-outline btn-sm" style="padding: 3px 7px;" onclick="App.openWorkerModal('${w.id}')" title="Edit Data Kru">
+                      ${Icons.edit ? Icons.edit(12) : '✏️'}
+                    </button>
+                    ${w.id === 'w-admin-1' ? '<small style="color: #94a3b8; font-size: 10px; margin-left: 2px;">Protected</small>' : `
+                      <button class="btn btn-danger btn-sm" style="padding: 3px 7px;" onclick="App.deleteWorkerAction('${w.id}', '${w.name.replace(/'/g, "\\'")}')" title="Hapus Kru">
+                        ${Icons.trash ? Icons.trash(12) : '🗑️'}
+                      </button>
+                    `}
+                  </div>
                 </td>
               </tr>
             `).join('')}
@@ -5032,9 +5047,12 @@ const App = {
 
   renderMasterAgenciesContent() {
     return `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Daftar Mitra Agen Travel B2B</span>
-        <button class="btn btn-primary btn-sm" onclick="App.promptAddAgency()">+ Tambah Agen Baru</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div>
+          <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Daftar Mitra Agen Travel B2B</span>
+          <div style="font-size: 11px; color: #64748b;">Kelola biro travel mitra rekanan untuk kemitraan pesanan B2B</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="App.openAgencyModal()">+ Tambah Agen Baru</button>
       </div>
 
       <div class="data-table-wrapper">
@@ -5044,7 +5062,8 @@ const App = {
               <th>Nama Agen</th>
               <th>Kode</th>
               <th>PIC</th>
-              <th>No. HP</th>
+              <th>No. WhatsApp</th>
+              <th>Email</th>
               <th>Status</th>
               <th>Aksi</th>
             </tr>
@@ -5053,14 +5072,26 @@ const App = {
             ${AppState.agencies.map(a => `
               <tr>
                 <td><strong>${a.name}</strong></td>
-                <td><code>${a.code}</code></td>
+                <td><code style="font-weight: 700;">${a.code}</code></td>
                 <td>${a.contactPerson || '-'}</td>
-                <td>${a.phone}</td>
-                <td><span class="badge" style="background: #e0f2fe; color: #0369a1; font-weight: 700;">Mitra B2B</span></td>
+                <td>${a.phone ? `<a href="${createWhatsAppUrl(a.phone, 'Halo ' + a.name)}" target="_blank" style="color: #0284c7; text-decoration: none; font-weight: 600;">${a.phone}</a>` : '-'}</td>
+                <td><small style="color: #64748b;">${a.email || '-'}</small></td>
                 <td>
-                  ${a.id === 'ag-direct' ? '<small style="color: #94a3b8;">Default</small>' : `
-                    <button class="btn btn-danger btn-sm" onclick="App.deleteAgencyAction('${a.id}', '${a.name}')">${Icons.trash(12)}</button>
-                  `}
+                  <span class="badge" style="background: ${a.id === 'ag-direct' ? '#f1f5f9' : '#e0f2fe'}; color: ${a.id === 'ag-direct' ? '#475569' : '#0369a1'}; font-weight: 700;">
+                    ${a.id === 'ag-direct' ? 'Tamu Langsung' : 'Mitra B2B'}
+                  </span>
+                </td>
+                <td>
+                  <div style="display: flex; gap: 4px; align-items: center;">
+                    <button class="btn btn-outline btn-sm" style="padding: 3px 7px;" onclick="App.openAgencyModal('${a.id}')" title="Edit Mitra Agen">
+                      ${Icons.edit ? Icons.edit(12) : '✏️'}
+                    </button>
+                    ${a.id === 'ag-direct' ? '<small style="color: #94a3b8; font-size: 10px; margin-left: 2px;">Default</small>' : `
+                      <button class="btn btn-danger btn-sm" style="padding: 3px 7px;" onclick="App.deleteAgencyAction('${a.id}', '${a.name.replace(/'/g, "\\'")}')" title="Hapus Agen">
+                        ${Icons.trash ? Icons.trash(12) : '🗑️'}
+                      </button>
+                    `}
+                  </div>
                 </td>
               </tr>
             `).join('')}
@@ -5070,70 +5101,370 @@ const App = {
     `;
   },
 
-  promptAddWorker() {
-    const name = prompt('Nama lengkap kru:');
-    if (!name) return;
-    const username = prompt('Username akun:');
-    if (!username) return;
-    const role = prompt('Peran (driver_jeep / driver_lapangan / photographer / guide):', 'driver_jeep');
-    const vehicleUnit = prompt('Unit armada (Plat / tipe):', 'Jeep Hardtop');
-    const baseRate = prompt('Tarif honor per trip (IDR):', '250000');
+  // 1. MODAL FORM KRU (DRIVER / FOTOGRAFER / GUIDE)
+  openWorkerModal(workerId = null) {
+    const isEdit = !!workerId;
+    const worker = isEdit ? AppState.workers.find(w => w.id === workerId) : null;
+    if (isEdit && !worker) {
+      showToast('error', 'Kru Tidak Ditemukan');
+      return;
+    }
 
-    API.saveWorker({
-      name, username, role, vehicleUnit, baseRatePerTrip: parseFloat(baseRate) || 200000,
-      pin: '123456', phone: '0812-0000-0000'
-    }).then(res => {
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
+
+    modalRoot.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-content" style="max-width: 580px;">
+          <div class="modal-header">
+            <div>
+              <div style="font-weight: 800; font-size: 16px; color: #0f172a;">
+                ${isEdit ? 'Edit Data Kru Operasional' : 'Tambah Kru Operasional Baru'}
+              </div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                ${isEdit ? `Perbarui data profil & tarif honor ${worker.name}` : 'Daftarkan Driver Jeep, Shuttle, Fotografer, atau Tour Guide'}
+              </div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="App.openManageMasterModal('workers')">${Icons.x(16)}</button>
+          </div>
+
+          <form id="form-master-worker" onsubmit="event.preventDefault(); App.submitWorkerForm('${workerId || ''}');">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Nama Lengkap Kru:*</label>
+                  <input type="text" id="m-worker-name" class="form-input" required
+                    placeholder="Contoh: Mas Yoyok / Budi Santoso"
+                    value="${worker ? worker.name : ''}"
+                    oninput="App.onWorkerNameInput(this.value, ${isEdit})" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Peran / Jabatan:*</label>
+                  <select id="m-worker-role" class="form-select" required onchange="App.onWorkerRoleChange(this.value, ${isEdit})">
+                    <option value="driver_jeep" ${worker?.role === 'driver_jeep' ? 'selected' : ''}>🚙 Driver Jeep (Armada 4x4)</option>
+                    <option value="driver_lapangan" ${worker?.role === 'driver_lapangan' || (!worker ? 'selected' : '')}>🚐 Driver Lapangan / Shuttle</option>
+                    <option value="photographer" ${worker?.role === 'photographer' ? 'selected' : ''}>📷 Fotografer Dokumentasi</option>
+                    <option value="guide" ${worker?.role === 'guide' ? 'selected' : ''}>🚩 Tour Guide</option>
+                    ${worker?.role === 'admin' ? '<option value="admin" selected>🛡️ Administrator</option>' : ''}
+                  </select>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Username Akun (Login):*</label>
+                  <input type="text" id="m-worker-username" class="form-input" required
+                    placeholder="contoh: yoyok"
+                    ${worker?.id === 'w-admin-1' ? 'readonly style="background: #f1f5f9;"' : ''}
+                    value="${worker ? (worker.username || '') : ''}" />
+                  <small style="font-size: 10px; color: #64748b;">Huruf kecil tanpa spasi</small>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">PIN Akses / Login:*</label>
+                  <input type="text" id="m-worker-pin" class="form-input" maxlength="10" required
+                    placeholder="123456"
+                    value="${worker ? (worker.pin || '123456') : '123456'}" />
+                  <small style="font-size: 10px; color: #64748b;">Angka (default: 123456)</small>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Nomor WhatsApp / HP:*</label>
+                  <input type="tel" id="m-worker-phone" class="form-input" required
+                    placeholder="0812-3456-7890"
+                    value="${worker ? (worker.phone || '') : '0812-0000-0000'}" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Tipe Kerjasama:*</label>
+                  <select id="m-worker-type" class="form-select">
+                    <option value="internal" ${worker?.type === 'internal' ? 'selected' : ''}>Karyawan / Unit Internal</option>
+                    <option value="external" ${worker?.type === 'external' ? 'selected' : ''}>Mitra Lepas / Freelance / Sewa</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Armada / Peralatan Kerja:</label>
+                  <input type="text" id="m-worker-unit" class="form-input"
+                    placeholder="Contoh: HiAce Shuttle N 7788 OP"
+                    value="${worker ? (worker.vehicleUnit || '') : 'HiAce Shuttle / Innova'}" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Tarif Honor per Trip (IDR):*</label>
+                  <input type="number" id="m-worker-rate" class="form-input" min="0" step="5000" required
+                    placeholder="175000"
+                    value="${worker ? worker.baseRatePerTrip : 175000}" />
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline" onclick="App.openManageMasterModal('workers')">Batal</button>
+              <button type="submit" class="btn btn-primary" id="btn-save-m-worker" style="font-weight: 700;">
+                ${isEdit ? 'Simpan Perubahan' : '+ Tambahkan Kru'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  },
+
+  onWorkerNameInput(val, isEdit) {
+    if (isEdit) return;
+    const uField = document.getElementById('m-worker-username');
+    if (!uField) return;
+    const clean = val.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (clean && !uField.dataset.userEdited) {
+      uField.value = clean;
+    }
+  },
+
+  onWorkerRoleChange(role, isEdit) {
+    if (isEdit) return;
+    const rateField = document.getElementById('m-worker-rate');
+    const unitField = document.getElementById('m-worker-unit');
+    if (!rateField || !unitField) return;
+
+    if (role === 'driver_jeep') {
+      rateField.value = 250000;
+      unitField.value = 'Jeep Hardtop 4x4';
+    } else if (role === 'driver_lapangan') {
+      rateField.value = 175000;
+      unitField.value = 'HiAce Shuttle / Innova';
+    } else if (role === 'photographer') {
+      rateField.value = 200000;
+      unitField.value = 'Camera Kit & Dokumentasi';
+    } else if (role === 'guide') {
+      rateField.value = 150000;
+      unitField.value = 'Lisensi Tour Guide';
+    }
+  },
+
+  async submitWorkerForm(workerId) {
+    const isEdit = !!workerId;
+    const name = document.getElementById('m-worker-name')?.value.trim();
+    const role = document.getElementById('m-worker-role')?.value;
+    const username = document.getElementById('m-worker-username')?.value.trim().toLowerCase();
+    const pin = document.getElementById('m-worker-pin')?.value.trim() || '123456';
+    const phone = document.getElementById('m-worker-phone')?.value.trim();
+    const type = document.getElementById('m-worker-type')?.value || 'internal';
+    const vehicleUnit = document.getElementById('m-worker-unit')?.value.trim() || '';
+    const baseRatePerTrip = parseFloat(document.getElementById('m-worker-rate')?.value) || 0;
+
+    if (!name) {
+      showToast('error', 'Validasi Gagal', 'Nama lengkap kru wajib diisi.');
+      return;
+    }
+    if (!username) {
+      showToast('error', 'Validasi Gagal', 'Username akun wajib diisi.');
+      return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-m-worker');
+    if (saveBtn) saveBtn.disabled = true;
+
+    try {
+      const payload = {
+        name, role, username, pin, phone, type, vehicleUnit, baseRatePerTrip
+      };
+      const res = await API.saveWorker(payload, workerId || null);
       if (res.success) {
-        showToast('success', 'Kru Ditambahkan', `Akun ${username} siap digunakan.`);
-        App.loadInitialData().then(() => App.switchMasterSubTab('workers'));
+        showToast('success', isEdit ? 'Kru Diperbarui' : 'Kru Ditambahkan', `Akun ${name} (${username}) berhasil disimpan.`);
+        await App.loadInitialData();
+        App.openManageMasterModal('workers');
       } else {
-        showToast('error', 'Gagal', res.message);
+        showToast('error', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan.');
+        if (saveBtn) saveBtn.disabled = false;
       }
-    });
+    } catch (e) {
+      showToast('error', 'Kesalahan', e.message);
+      if (saveBtn) saveBtn.disabled = false;
+    }
   },
 
   deleteWorkerAction(id, name) {
-    if (confirm(`Hapus akun kru ${name}?`)) {
-      API.deleteWorker(id).then(res => {
-        if (res.success) {
-          showToast('success', 'Kru Dihapus', 'Data telah dihapus.');
-          App.loadInitialData().then(() => App.switchMasterSubTab('workers'));
-        } else {
-          showToast('error', 'Gagal', res.message);
-        }
-      });
+    if (id === 'w-admin-1') {
+      showToast('warning', 'Otoritas Dilindungi', 'Akun Administrator utama tidak dapat dihapus.');
+      return;
     }
-  },
-
-  promptAddAgency() {
-    const name = prompt('Nama mitra agen travel:');
-    if (!name) return;
-    const code = prompt('Kode agen (contoh: AG-99):', 'AG-' + Math.floor(Math.random() * 89 + 10));
-    const phone = prompt('Nomor telepon / WA:', '0812-3344-5566');
-
-    API.saveAgency({
-      name, code, phone
-    }).then(res => {
-      if (res.success) {
-        showToast('success', 'Mitra Ditambahkan', `Agen ${name} tersimpan.`);
-        App.loadInitialData().then(() => App.switchMasterSubTab('agencies'));
-      } else {
-        showToast('error', 'Gagal', res.message);
+    requestConfirm({
+      title: 'Hapus Akun Kru',
+      message: `Apakah Anda yakin ingin menghapus akun kru <strong>${name}</strong>? Tindakan ini akan menghapus akun login dan profil kru dari sistem.`,
+      confirmLabel: 'Ya, Hapus Kru',
+      isDestructive: true,
+      onConfirm: async () => {
+        const res = await API.deleteWorker(id);
+        if (res.success) {
+          showToast('success', 'Kru Dihapus', `Data kru ${name} berhasil dihapus.`);
+          await App.loadInitialData();
+          App.openManageMasterModal('workers');
+        } else {
+          showToast('error', 'Gagal Menghapus', res.message);
+        }
       }
     });
   },
 
-  deleteAgencyAction(id, name) {
-    if (confirm(`Hapus mitra agen ${name}?`)) {
-      API.deleteAgency(id).then(res => {
-        if (res.success) {
-          showToast('success', 'Agen Dihapus', 'Data mitra dihapus.');
-          App.loadInitialData().then(() => App.switchMasterSubTab('agencies'));
-        } else {
-          showToast('error', 'Gagal', res.message);
-        }
-      });
+  // 2. MODAL FORM AGEN TRAVEL (B2B)
+  openAgencyModal(agencyId = null) {
+    const isEdit = !!agencyId;
+    const agency = isEdit ? AppState.agencies.find(a => a.id === agencyId) : null;
+    if (isEdit && !agency) {
+      showToast('error', 'Mitra Tidak Ditemukan');
+      return;
     }
+
+    const defaultCode = 'AG-' + Math.floor(Math.random() * 89 + 10);
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
+
+    modalRoot.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-content" style="max-width: 580px;">
+          <div class="modal-header">
+            <div>
+              <div style="font-weight: 800; font-size: 16px; color: #0f172a;">
+                ${isEdit ? 'Edit Data Mitra Agen Travel' : 'Tambah Mitra Agen Travel Baru'}
+              </div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                ${isEdit ? `Perbarui data kemitraan B2B untuk ${agency.name}` : 'Daftarkan mitra agen travel rekanan untuk kemitraan pesanan B2B'}
+              </div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="App.openManageMasterModal('agencies')">${Icons.x(16)}</button>
+          </div>
+
+          <form id="form-master-agency" onsubmit="event.preventDefault(); App.submitAgencyForm('${agencyId || ''}');">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Nama Mitra Agen / Biro Travel:*</label>
+                  <input type="text" id="m-agency-name" class="form-input" required
+                    placeholder="Contoh: Java Heritage Tour & Travel"
+                    value="${agency ? agency.name : ''}" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Kode Agen:*</label>
+                  <input type="text" id="m-agency-code" class="form-input" required
+                    placeholder="Contoh: AG-05"
+                    ${agency?.id === 'ag-direct' ? 'readonly style="background: #f1f5f9;"' : ''}
+                    value="${agency ? agency.code : defaultCode}" />
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Nama PIC / Penanggung Jawab:</label>
+                  <input type="text" id="m-agency-contact" class="form-input"
+                    placeholder="Contoh: Ibu Rina / Bpk Doni"
+                    value="${agency ? (agency.contactPerson || '') : ''}" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-weight: 700;">Nomor WhatsApp / HP PIC:*</label>
+                  <input type="tel" id="m-agency-phone" class="form-input" required
+                    placeholder="0812-3344-5566"
+                    value="${agency ? agency.phone : ''}" />
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Email Kontak Agen (Opsional):</label>
+                <input type="email" id="m-agency-email" class="form-input"
+                  placeholder="Contoh: booking@mitratour.com"
+                  value="${agency ? (agency.email || '') : ''}" />
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Alamat Kantor / Domisili Agen (Opsional):</label>
+                <textarea id="m-agency-address" class="form-input" rows="2"
+                  placeholder="Contoh: Jl. Basuki Rahmat No. 12, Surabaya">${agency ? (agency.address || '') : ''}</textarea>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline" onclick="App.openManageMasterModal('agencies')">Batal</button>
+              <button type="submit" class="btn btn-primary" id="btn-save-m-agency" style="font-weight: 700;">
+                ${isEdit ? 'Simpan Perubahan' : '+ Daftarkan Agen'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  },
+
+  async submitAgencyForm(agencyId) {
+    const isEdit = !!agencyId;
+    const name = document.getElementById('m-agency-name')?.value.trim();
+    const code = document.getElementById('m-agency-code')?.value.trim().toUpperCase();
+    const contactPerson = document.getElementById('m-agency-contact')?.value.trim() || 'PIC Operasional';
+    const phone = document.getElementById('m-agency-phone')?.value.trim();
+    const email = document.getElementById('m-agency-email')?.value.trim() || '';
+    const address = document.getElementById('m-agency-address')?.value.trim() || '';
+
+    if (!name) {
+      showToast('error', 'Validasi Gagal', 'Nama mitra agen wajib diisi.');
+      return;
+    }
+    if (!phone) {
+      showToast('error', 'Validasi Gagal', 'Nomor telepon / WA PIC wajib diisi.');
+      return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-m-agency');
+    if (saveBtn) saveBtn.disabled = true;
+
+    try {
+      const payload = {
+        name, code, contactPerson, phone, email, address
+      };
+      const res = await API.saveAgency(payload, agencyId || null);
+      if (res.success) {
+        showToast('success', isEdit ? 'Agen Diperbarui' : 'Agen Ditambahkan', `Mitra ${name} (${code}) berhasil disimpan.`);
+        await App.loadInitialData();
+        App.openManageMasterModal('agencies');
+      } else {
+        showToast('error', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan.');
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    } catch (e) {
+      showToast('error', 'Kesalahan', e.message);
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  },
+
+  deleteAgencyAction(id, name) {
+    if (id === 'ag-direct') {
+      showToast('warning', 'Otoritas Dilindungi', 'Agen Direct adalah agen bawaan sistem untuk tamu non-agen dan tidak dapat dihapus.');
+      return;
+    }
+    requestConfirm({
+      title: 'Hapus Mitra Agen',
+      message: `Apakah Anda yakin ingin menghapus data mitra travel <strong>${name}</strong>?`,
+      confirmLabel: 'Ya, Hapus Agen',
+      isDestructive: true,
+      onConfirm: async () => {
+        const res = await API.deleteAgency(id);
+        if (res.success) {
+          showToast('success', 'Agen Dihapus', `Data mitra agen ${name} berhasil dihapus.`);
+          await App.loadInitialData();
+          App.openManageMasterModal('agencies');
+        } else {
+          showToast('error', 'Gagal Menghapus', res.message);
+        }
+      }
+    });
+  },
+
+  // Backwards compatibility aliases
+  promptAddWorker() {
+    this.openWorkerModal();
+  },
+
+  promptAddAgency() {
+    this.openAgencyModal();
   },
 
   renderMasterTemplatesContent() {
@@ -5353,20 +5684,26 @@ const App = {
   },
 
   deleteTemplateAction(id, name) {
-    if (confirm(`Apakah Anda yakin ingin menghapus template itinerary "${name}"?
-Data rute dan titik kunjungan untuk template ini akan dihapus.`)) {
-      API.deleteTemplate(id).then(async (res) => {
-        if (res.success) {
-          showToast('success', 'Template Dihapus', `Template "${name}" telah dihapus.`);
-          await App.loadInitialData();
-          App.openManageMasterModal('templates');
-        } else {
-          showToast('error', 'Gagal Menghapus', res.message || 'Tidak dapat menghapus template.');
+    requestConfirm({
+      title: 'Hapus Template Itinerary',
+      message: `Apakah Anda yakin ingin menghapus template itinerary <strong>${name}</strong>? Seluruh titik kunjungan bawaan untuk template ini akan dihapus.`,
+      confirmLabel: 'Ya, Hapus Template',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await API.deleteTemplate(id);
+          if (res.success) {
+            showToast('success', 'Template Dihapus', `Template "${name}" telah dihapus.`);
+            await App.loadInitialData();
+            App.openManageMasterModal('templates');
+          } else {
+            showToast('error', 'Gagal Menghapus', res.message || 'Tidak dapat menghapus template.');
+          }
+        } catch (err) {
+          showToast('error', 'Kesalahan', err.message);
         }
-      }).catch(err => {
-        showToast('error', 'Kesalahan', err.message);
-      });
-    }
+      }
+    });
   },
 
   openInvoiceModal(agencyId) {
