@@ -81,6 +81,14 @@ if ($action === 'run' && $testPdo) {
                 $stmtCrew->execute($cs);
             }
             $messages[] = "Data kru operasional (Driver Lapangan & Fotografer) berhasil disinkronkan.";
+
+            // Auto-cleanup legacy dummy seed data (dummy trips, dummy agencies, dummy users)
+            $testPdo->exec("DELETE FROM trips WHERE id IN ('trip-1', 'trip-2', 'trip-3', 'trip-4', 'trip-5', 'trip-6', 'trip-7', 'trip-8', 'trip-9') OR id LIKE 'trip-1791%'");
+            $testPdo->exec("DELETE FROM agencies WHERE id IN ('ag-1', 'ag-2', 'ag-3')");
+            $testPdo->exec("DELETE FROM itinerary_stops WHERE template_id LIKE 'tpl-1791%'");
+            $testPdo->exec("DELETE FROM itinerary_templates WHERE id LIKE 'tpl-1791%'");
+            $testPdo->exec("DELETE FROM users WHERE id IN ('w-jeep-1', 'w-jeep-2', 'w-jeep-3', 'w-field-1', 'w-field-2', 'w-photo-1', 'w-photo-2')");
+            $messages[] = "Data dummy bawaan berhasil dibersihkan dari database.";
         } catch (Exception $migErr) {
             // Ignore if column already exists or minor error
         }
@@ -290,9 +298,8 @@ if ($action === 'run' && $testPdo) {
       <div style="font-weight: 700; margin-bottom: 6px; color: #0f172a;">Akun Demo Tersedia (PIN Default: <strong>123456</strong>):</div>
       <ul>
         <li><strong>admin</strong> &bull; Administrator (Manajemen Trip, Kru, PnL, Payroll, Tagihan)</li>
-        <li><strong>budi</strong> &bull; Driver Jeep (Armada Tetap N 1045 AB)</li>
-        <li><strong>rian</strong> &bull; Driver Lapangan / Shuttle (HiAce N 7788 OP)</li>
-        <li><strong>dimas</strong> &bull; Fotografer (Sony A7 IV + Dokumentasi Cloud)</li>
+        <li><strong>yoyok</strong> / <strong>didik_driver</strong> / <strong>andri_driver</strong> &bull; Driver Lapangan / Shuttle</li>
+        <li><strong>annur</strong> / <strong>ferdy</strong> / <strong>andy</strong> &bull; Fotografer Dokumentasi</li>
       </ul>
     </div>
   </div>

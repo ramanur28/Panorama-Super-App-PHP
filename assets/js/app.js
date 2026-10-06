@@ -14,7 +14,7 @@ const AppState = {
   activeSubTab: 'daily', // 'daily', 'crew_status', 'pnl', 'agencies', 'payroll'
   crewTab: 'today',      // 'today', 'all'
   dailyDate: 'all',
-  crewDate: '2026-09-17',
+  crewDate: new Date().toISOString().slice(0, 10),
   crewTimeSlot: 'all',
   crewRole: 'all',
   crewAvailability: 'all',
@@ -573,10 +573,8 @@ const App = {
           <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <span style="font-size: 11px; font-weight: 700; color: #64748b; margin-right: 4px;">Filter Tanggal:</span>
             <button class="btn btn-sm ${activeDate === 'all' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setDailyDate('all')">Semua Tanggal</button>
-            <button class="btn btn-sm ${activeDate === '2026-09-17' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setDailyDate('2026-09-17')">17 Sep 2026</button>
-            <button class="btn btn-sm ${activeDate === '2026-09-18' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setDailyDate('2026-09-18')">18 Sep 2026</button>
-            <button class="btn btn-sm ${activeDate === '2026-09-19' ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setDailyDate('2026-09-19')">19 Sep 2026</button>
             <button class="btn btn-sm ${activeDate === new Date().toISOString().slice(0, 10) ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setDailyDate(new Date().toISOString().slice(0, 10))">Hari Ini</button>
+            <button class="btn btn-sm ${activeDate === new Date(Date.now() + 86400000).toISOString().slice(0, 10) ? 'btn-primary' : 'btn-outline'}" style="font-size: 11px; padding: 3px 8px;" onclick="App.setDailyDate(new Date(Date.now() + 86400000).toISOString().slice(0, 10))">Besok</button>
           </div>
 
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -700,7 +698,7 @@ const App = {
 
   // 2B. ADMIN CREW STATUS & CAPACITY (MONITORING REAL-TIME PER TANGGAL & SESI WAKTU)
   renderAdminCrewStatusTab() {
-    const targetDate = AppState.crewDate || '2026-09-17';
+    const targetDate = AppState.crewDate || new Date().toISOString().slice(0, 10);
     const allWorkers = AppState.workers.filter(w => w.role !== 'admin');
 
     // Hitung ketersediaan berdasarkan tanggal dan slot waktu terpilih
@@ -774,10 +772,9 @@ const App = {
                 value="${targetDate}" onchange="App.setCrewDate(this.value)" />
             </div>
             <div style="display: flex; gap: 4px;">
-              <button class="btn btn-outline btn-sm ${targetDate === '2026-09-17' ? 'active' : ''}" style="font-size: 11px; padding: 5px 8px;" onclick="App.setCrewDate('2026-09-17')">17 Sep</button>
-              <button class="btn btn-outline btn-sm ${targetDate === '2026-09-18' ? 'active' : ''}" style="font-size: 11px; padding: 5px 8px;" onclick="App.setCrewDate('2026-09-18')">18 Sep</button>
-              <button class="btn btn-outline btn-sm ${targetDate === '2026-09-19' ? 'active' : ''}" style="font-size: 11px; padding: 5px 8px;" onclick="App.setCrewDate('2026-09-19')">19 Sep</button>
               <button class="btn btn-outline btn-sm ${targetDate === new Date().toISOString().slice(0, 10) ? 'active' : ''}" style="font-size: 11px; padding: 5px 8px;" onclick="App.setCrewDate(new Date().toISOString().slice(0, 10))">Hari Ini</button>
+              <button class="btn btn-outline btn-sm ${targetDate === new Date(Date.now() + 86400000).toISOString().slice(0, 10) ? 'active' : ''}" style="font-size: 11px; padding: 5px 8px;" onclick="App.setCrewDate(new Date(Date.now() + 86400000).toISOString().slice(0, 10))">Besok</button>
+              <button class="btn btn-outline btn-sm ${targetDate === new Date(Date.now() + 172800000).toISOString().slice(0, 10) ? 'active' : ''}" style="font-size: 11px; padding: 5px 8px;" onclick="App.setCrewDate(new Date(Date.now() + 172800000).toISOString().slice(0, 10))">Lusa</button>
             </div>
           </div>
         </div>
