@@ -94,12 +94,20 @@ function map_trip_row(array $r, ?string $viewerRole = null, ?string $viewerId = 
                 'id' => $item['id'] ?? '',
                 'day' => (int)($item['day'] ?? 1),
                 'dayTitle' => $item['dayTitle'] ?? ('Hari ' . ($item['day'] ?? 1)),
+                'activityType' => $item['activityType'] ?? 'spot_wisata',
+                'hotelName' => $item['hotelName'] ?? '',
                 'time' => $item['time'] ?? '',
                 'title' => $item['title'] ?? '',
                 'location' => $item['location'] ?? 'Spot Wisata Bromo',
                 'description' => $item['description'] ?? '',
                 'notes' => $item['notes'] ?? '',
-                'operationalDesc' => $item['operationalDesc'] ?? ''
+                'operationalDesc' => $item['operationalDesc'] ?? '',
+                'dayFieldDriverId' => $item['dayFieldDriverId'] ?? null,
+                'dayFieldDriverName' => $item['dayFieldDriverName'] ?? null,
+                'dayFieldDriverUnit' => $item['dayFieldDriverUnit'] ?? null,
+                'jeepDriverId' => $item['jeepDriverId'] ?? null,
+                'jeepDriverName' => $item['jeepDriverName'] ?? null,
+                'jeepUnit' => $item['jeepUnit'] ?? null
             ];
         }, $parsedItinerary);
     } else {

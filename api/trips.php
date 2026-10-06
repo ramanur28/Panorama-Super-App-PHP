@@ -29,13 +29,15 @@ if ($method === 'GET' && empty($action) && empty($tripId)) {
     $sql = "SELECT * FROM trips WHERE 1=1";
     $params = [];
 
-    // Role-based boundary filtering
+    // Role-based boundary filtering (supports trip-level or day/activity-level assignment in itinerary)
     if ($role === 'driver_jeep' && $workerId) {
-        $sql .= " AND jeep_driver_id = ?";
+        $sql .= " AND (jeep_driver_id = ? OR raw_itinerary LIKE ?)";
         $params[] = $workerId;
+        $params[] = '%"jeepDriverId":"' . $workerId . '"%';
     } elseif ($role === 'driver_lapangan' && $workerId) {
-        $sql .= " AND field_driver_id = ?";
+        $sql .= " AND (field_driver_id = ? OR raw_itinerary LIKE ?)";
         $params[] = $workerId;
+        $params[] = '%"dayFieldDriverId":"' . $workerId . '"%';
     } elseif ($role === 'photographer' && $workerId) {
         $sql .= " AND photographer_id = ?";
         $params[] = $workerId;

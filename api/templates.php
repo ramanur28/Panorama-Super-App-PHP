@@ -28,6 +28,8 @@ function parse_stop_row(array $s): array {
         'id' => $s['id'],
         'day' => (int)($extra['day'] ?? 1),
         'dayTitle' => $extra['dayTitle'] ?? ('Hari ' . ($extra['day'] ?? 1)),
+        'activityType' => $extra['activityType'] ?? 'spot_wisata',
+        'hotelName' => $extra['hotelName'] ?? '',
         'time' => $s['time_estimate'],
         'title' => $s['title'],
         'location' => $extra['location'] ?? 'Spot Wisata Bromo',
@@ -134,6 +136,8 @@ if ($method === 'POST' && empty($action) && empty($templateId)) {
                 $extraData = [
                     'day' => (int)($item['day'] ?? 1),
                     'dayTitle' => trim($item['dayTitle'] ?? ('Hari ' . ($item['day'] ?? 1))),
+                    'activityType' => trim($item['activityType'] ?? 'spot_wisata'),
+                    'hotelName' => trim($item['hotelName'] ?? ''),
                     'operationalDesc' => trim($item['operationalDesc'] ?? ''),
                     'ticketCost' => (float)($item['ticketCost'] ?? 0),
                     'hotelCost' => (float)($item['hotelCost'] ?? 0),
@@ -207,6 +211,8 @@ if ($method === 'PUT' || ($method === 'POST' && $action === 'update')) {
                 $extraData = [
                     'day' => (int)($item['day'] ?? 1),
                     'dayTitle' => trim($item['dayTitle'] ?? ('Hari ' . ($item['day'] ?? 1))),
+                    'activityType' => trim($item['activityType'] ?? 'spot_wisata'),
+                    'hotelName' => trim($item['hotelName'] ?? ''),
                     'operationalDesc' => trim($item['operationalDesc'] ?? ''),
                     'ticketCost' => (float)($item['ticketCost'] ?? 0),
                     'hotelCost' => (float)($item['hotelCost'] ?? 0),

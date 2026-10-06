@@ -1819,6 +1819,21 @@ const App = {
                     <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
                       Unit: <strong>${trip.fieldDriverUnit || 'HiAce / Shuttle'}</strong> ${fieldWorker?.phone ? `&bull; WA: <a href="${createWhatsAppUrl(fieldWorker.phone, '')}" target="_blank" style="color: #059669;">${fieldWorker.phone}</a>` : ''}
                     </div>
+                    ${(() => {
+                      const dayDrivers = {};
+                      (trip.itinerary || []).forEach(it => {
+                        if (it.dayFieldDriverName) {
+                          dayDrivers[it.day || 1] = `${it.dayFieldDriverName} (${it.dayFieldDriverUnit || 'Shuttle'})`;
+                        }
+                      });
+                      const dayKeys = Object.keys(dayDrivers);
+                      if (dayKeys.length > 1) {
+                        return `<div style="font-size: 10px; color: #0284c7; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
+                          <strong>Plotting Harian:</strong> ${dayKeys.map(d => `<span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 9px;">Hari ${d}: ${dayDrivers[d]}</span>`).join(' ')}
+                        </div>`;
+                      }
+                      return '';
+                    })()}
                   </div>
                   ${isAdmin ? `
                     <div style="text-align: right;">
@@ -1894,7 +1909,12 @@ const App = {
                   return Object.values(dayMap).map(grp => `
                     <div class="day-group-card">
                       <div class="day-group-header">
-                        <span>📅 ${grp.title}</span>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <span>📅 ${grp.title}</span>
+                          ${grp.items[0]?.dayFieldDriverName ? `
+                            <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 700;">🚐 Driver: ${grp.items[0].dayFieldDriverName}</span>
+                          ` : ''}
+                        </div>
                         <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px;">${grp.items.length} Kegiatan</span>
                       </div>
                       <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
@@ -1971,6 +1991,7 @@ const App = {
   },
 
   openAddTripModal(tripToEditId = null) {
+    App._editingTripId = tripToEditId;
     const editTrip = tripToEditId ? AppState.trips.find(t => t.id === tripToEditId) : null;
     const modalRoot = document.getElementById('modal-root');
 
@@ -2748,6 +2769,8 @@ const App = {
         dayMap[dNum] = {
           day: dNum,
           title: item.dayTitle || `Hari ${dNum}`,
+          fieldDriverName: item.dayFieldDriverName || null,
+          fieldDriverUnit: item.dayFieldDriverUnit || null,
           activities: []
         };
       }
@@ -2757,7 +2780,7 @@ const App = {
       totalHotels += (parseFloat(item.hotelCost) || 0);
     });
 
-    const days = Object.values(dayMap);
+    const days = Object.values(dayMap).sort((a, b) => a.day - b.day);
     const totalDays = days.length > 0 ? days.length : 1;
     const grandTotal = totalOps + totalTickets + totalHotels;
 
@@ -2785,17 +2808,210 @@ const App = {
           <span style="margin-left: auto; color: #166534; font-weight: 800;">Total: ${formatIDR(grandTotal)}</span>
         </div>
 
-        <!-- Days list preview -->
-        <div style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; padding-right: 2px;">
-          ${days.map(d => `
-            <div style="font-size: 11px; padding: 5px 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
-              <strong style="color: #0284c7;">📅 ${d.title}</strong> (${d.activities.length} spot): 
-              <span style="color: #64748b;">${d.activities.map(a => a.title).slice(0, 3).join(', ')}${d.activities.length > 3 ? ` (+${d.activities.length - 3} lainnya)` : ''}</span>
-            </div>
-          `).join('')}
+        <!-- Days list preview with Daily Driver Lapangan and Spot Details -->
+        <div style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; padding-right: 2px;">
+          ${days.map(d => {
+            const dayDriverName = d.fieldDriverName || d.activities[0]?.dayFieldDriverName;
+            const dayDriverUnit = d.fieldDriverUnit || d.activities[0]?.dayFieldDriverUnit;
+            return `
+              <div style="font-size: 11px; padding: 6px 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <strong style="color: #0284c7;">📅 ${d.title}</strong>
+                  ${dayDriverName ? `<span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: 700;">🚐 ${dayDriverName} (${dayDriverUnit || 'Shuttle'})</span>` : ''}
+                </div>
+                <div style="color: #64748b; font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px;">
+                  ${d.activities.map(a => {
+                    const aType = a.activityType || App.inferActivityType(a);
+                    if (aType === 'hotel') {
+                      return `<span style="background: #f5f3ff; color: #6d28d9; padding: 1px 6px; border-radius: 4px; border: 1px solid #ddd6fe; font-size: 10px; font-weight: 600;">🏨 ${a.hotelName ? `Hotel: ${a.hotelName}` : a.title}</span>`;
+                    } else if (aType === 'bromo_sunrise') {
+                      return `<span style="background: #fffbeb; color: #b45309; padding: 1px 6px; border-radius: 4px; border: 1px solid #fde68a; font-size: 10px; font-weight: 600;">🌄 ${a.title}${a.jeepDriverName ? ` (🚙 ${a.jeepDriverName})` : ''}</span>`;
+                    } else {
+                      return `<span style="background: #f8fafc; color: #334155; padding: 1px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-size: 10px;">${a.title}</span>`;
+                    }
+                  }).join(' ')}
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
     `;
+  },
+
+  // Master Activity Types definition & inference
+  ACTIVITY_TYPES: [
+    {
+      id: 'bromo_sunrise',
+      label: '🌄 Bromo Sunrise / Sunset (Jeep 4x4)',
+      badge: 'Jeep Bromo',
+      color: '#d97706',
+      bgColor: '#fef3c7',
+      defaultTitle: 'Golden Sunrise Bromo Penanjakan 1 (Jeep 4x4)',
+      defaultOpDesc: 'Sewa Jeep Hardtop 4x4 & Driver Bromo',
+      defaultOpCost: 120000,
+      defaultTicketCost: 54000,
+      defaultHotelCost: 0,
+      defaultNotes: 'Suhu dingin 5-10°C, kenakan jaket tebal. Standby jeep tepat waktu.',
+      defaultTime: '03:30 - 06:00 WIB',
+      presetSpots: [
+        'Golden Sunrise Penanjakan 1',
+        'Sunrise Bukit Kingkong (Kingkong Hill)',
+        'Sunrise Bukit Cinta (Love Hill)',
+        'Sunrise Seruni Point (Penanjakan 2)',
+        'Mentigen Hill Sunrise View',
+        'Sunset Bromo Bukit Teletubbies'
+      ]
+    },
+    {
+      id: 'hotel',
+      label: '🏨 Akomodasi (Hotel / Penginapan / Homestay)',
+      badge: 'Hotel',
+      color: '#7c3aed',
+      bgColor: '#ede9fe',
+      defaultTitle: 'Check-in & Istirahat Hotel',
+      defaultOpDesc: 'Voucher reservasi kamar hotel / homestay',
+      defaultOpCost: 0,
+      defaultTicketCost: 0,
+      defaultHotelCost: 450000,
+      defaultNotes: 'Tunjukkan voucher booking & ID booking saat check-in resepsionis.',
+      defaultTime: '14:00 WIB / Menginap',
+      presetHotels: [
+        'Hotel Tugu Malang',
+        'Grand Mercure Malang Mirama',
+        'Hotel Santika Premiere Malang',
+        'Lava View Lodge Bromo',
+        'Bromo Terrace Hotel',
+        'Whiz Prime Hotel Bromo',
+        'Plataran Bromo Resort & Spa',
+        'Jiwa Jawa Resort Bromo',
+        'Swiss-Belinn Malang',
+        'Ijen Suites Resort & Convention Malang',
+        'Hotel Harris Malang',
+        'Cemara Indah Hotel Bromo'
+      ]
+    },
+    {
+      id: 'spot_wisata',
+      label: '🌋 Spot Wisata / Destinasi Non-Jeep',
+      badge: 'Spot Wisata',
+      color: '#059669',
+      bgColor: '#d1fae5',
+      defaultTitle: 'Kawah Bromo & Pura Luhur Poten',
+      defaultOpDesc: 'Guide lokal / tiket destinasi wisata',
+      defaultOpCost: 30000,
+      defaultTicketCost: 35000,
+      defaultHotelCost: 0,
+      defaultNotes: 'Dapat jalan kaki atau sewa kuda menuju tangga bibir kawah.',
+      defaultTime: '06:30 - 08:30 WIB',
+      presetSpots: [
+        'Kawah Bromo & Pura Luhur Poten',
+        'Pasir Berbisik (Whispering Sands)',
+        'Savana & Bukit Teletubbies Bromo',
+        'Air Terjun Madakaripura',
+        'Museum Angkut Batu',
+        'Jatim Park 2 (Batu Secret Zoo)',
+        'Flora Wisata San Terra Pujon',
+        'Kampung Warna-Warni Jodipan Malang',
+        'Coban Rondo & Taman Labirin'
+      ]
+    },
+    {
+      id: 'shuttle_transfer',
+      label: '🚐 Penjemputan / Shuttle / Antar-Jemput',
+      badge: 'Shuttle Transfer',
+      color: '#0284c7',
+      bgColor: '#e0f2fe',
+      defaultTitle: 'Penjemputan Tamu di Meeting Point / Hotel',
+      defaultOpDesc: 'Armada shuttle lokal & BBM',
+      defaultOpCost: 50000,
+      defaultTicketCost: 0,
+      defaultHotelCost: 0,
+      defaultNotes: 'Driver standby 15 menit sebelum waktu penjemputan.',
+      defaultTime: '00:00 - 01:00 WIB',
+      presetSpots: [
+        'Penjemputan Tamu di Meeting Point / Hotel',
+        'Penjemputan Bandara Abdulrachman Saleh Malang (MLG)',
+        'Penjemputan Stasiun Malang Kotabaru',
+        'Transit Rest Area Sukapura / Wonokitri',
+        'Pengantaran Pulang (Drop Off) Malang / Batu',
+        'Drop Off Bandara Juanda Surabaya (SUB)'
+      ]
+    },
+    {
+      id: 'kuliner',
+      label: '🍽️ Kuliner / Resto / Istirahat Makan',
+      badge: 'Kuliner / Resto',
+      color: '#e11d48',
+      bgColor: '#ffe4e6',
+      defaultTitle: 'Sarapan Pagi di Resto Lokal',
+      defaultOpDesc: 'Voucher makan / prasmanan lokal',
+      defaultOpCost: 45000,
+      defaultTicketCost: 0,
+      defaultHotelCost: 0,
+      defaultNotes: 'Menu prasmanan khas Jawa Timur + teh/kopi hangat.',
+      defaultTime: '08:30 - 09:30 WIB',
+      presetSpots: [
+        'Sarapan Pagi di Resto Lokal Bromo',
+        'Makan Siang di Resto Tradisional Malang',
+        'Makan Malam (Dinner Session)',
+        'Coffee Break & Belanja Oleh-Oleh Malang'
+      ]
+    },
+    {
+      id: 'milky_way',
+      label: '🌌 Bromo Milky Way & Fotografi Malam',
+      badge: 'Milky Way',
+      color: '#4f46e5',
+      bgColor: '#e0e7ff',
+      defaultTitle: 'Hunting Milky Way Kingkong Hill & Lautan Pasir',
+      defaultOpDesc: 'Jeep 4x4 & perlengkapan astro lighting',
+      defaultOpCost: 150000,
+      defaultTicketCost: 54000,
+      defaultHotelCost: 0,
+      defaultNotes: 'Bawa tripod kokoh & lensa aperture lebar (f/2.8).',
+      defaultTime: '23:00 - 03:00 WIB',
+      presetSpots: [
+        'Hunting Milky Way Kingkong Hill',
+        'Hunting Milky Way Lautan Pasir Bromo',
+        'Astro-photography Bukit Cinta'
+      ]
+    },
+    {
+      id: 'custom',
+      label: '✨ Kegiatan Kustom / Lainnya',
+      badge: 'Kustom',
+      color: '#475569',
+      bgColor: '#f1f5f9',
+      defaultTitle: 'Kegiatan Acara Khusus',
+      defaultOpDesc: 'Operasional kegiatan mandiri',
+      defaultOpCost: 0,
+      defaultTicketCost: 0,
+      defaultHotelCost: 0,
+      defaultNotes: 'Agenda fleksibel sesuai permintaan tamu.',
+      defaultTime: ''
+    }
+  ],
+
+  inferActivityType(act) {
+    if (act.activityType) return act.activityType;
+    const str = `${act.title || ''} ${act.operationalDesc || ''} ${act.notes || ''}`.toLowerCase();
+    if ((act.hotelCost && parseFloat(act.hotelCost) > 0) || act.hotelName || /hotel|nginap|kamar|homestay|resort|villa|lodging|check-in/i.test(str)) {
+      return 'hotel';
+    }
+    if (/sunrise|sunset|penanjakan|kingkong|seruni|mentigen|bukit cinta|jeep|hardtop/i.test(str)) {
+      return 'bromo_sunrise';
+    }
+    if (/milky\s*way|bintang|night\s*photo/i.test(str)) {
+      return 'milky_way';
+    }
+    if (/jemput|drop|shuttle|antar|transfer|stasiun|bandara/i.test(str)) {
+      return 'shuttle_transfer';
+    }
+    if (/makan|resto|kuliner|sarapan|dinner|lunch/i.test(str)) {
+      return 'kuliner';
+    }
+    return 'spot_wisata';
   },
 
   openItineraryBuilderModal(options = {}) {
@@ -2826,13 +3042,24 @@ const App = {
               dayMap[dNum] = {
                 day: dNum,
                 title: it.dayTitle || `Hari ${dNum}`,
+                fieldDriverId: null,
+                fieldDriverName: null,
+                fieldDriverUnit: null,
+                fieldDriverFee: 0,
                 activities: []
               };
             }
+            const aType = it.activityType || App.inferActivityType(it);
             dayMap[dNum].activities.push({
               id: it.id || ('stop-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)),
               time: it.time || '',
+              activityType: aType,
               title: it.title || '',
+              hotelName: it.hotelName || '',
+              jeepDriverId: null,
+              jeepDriverName: null,
+              jeepUnit: null,
+              jeepFee: 0,
               operationalDesc: it.operationalDesc || '',
               operationalCost: parseFloat(it.operationalCost) || 0,
               ticketCost: parseFloat(it.ticketCost) || 0,
@@ -2849,13 +3076,23 @@ const App = {
           {
             day: 1,
             title: 'Hari 1 - Penjemputan & Sunrise Bromo',
+            fieldDriverId: null,
+            fieldDriverName: null,
+            fieldDriverUnit: null,
+            fieldDriverFee: 0,
             activities: [
               {
                 id: 'stop-' + Date.now() + '-1',
                 time: '00:00 - 01:00 WIB',
+                activityType: 'shuttle_transfer',
                 title: 'Penjemputan Tamu di Meeting Point / Hotel',
+                hotelName: '',
+                jeepDriverId: null,
+                jeepDriverName: null,
+                jeepUnit: null,
+                jeepFee: 0,
                 operationalDesc: 'Armada shuttle / BBM',
-                operationalCost: 0,
+                operationalCost: 50000,
                 ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Briefing dan cek kelengkapan barang bawaan'
@@ -2863,9 +3100,15 @@ const App = {
               {
                 id: 'stop-' + Date.now() + '-2',
                 time: '03:30 - 06:00 WIB',
-                title: 'Golden Sunrise View Point Penanjakan',
+                activityType: 'bromo_sunrise',
+                title: 'Golden Sunrise View Point Penanjakan 1',
+                hotelName: '',
+                jeepDriverId: null,
+                jeepDriverName: null,
+                jeepUnit: null,
+                jeepFee: 0,
                 operationalDesc: 'Sewa Jeep Hardtop 4x4',
-                operationalCost: 100000,
+                operationalCost: 120000,
                 ticketCost: 54000,
                 hotelCost: 0,
                 notes: 'Suhu dingin 5-10 derajat celcius, kenakan jaket tebal'
@@ -2873,9 +3116,15 @@ const App = {
               {
                 id: 'stop-' + Date.now() + '-3',
                 time: '06:30 - 08:30 WIB',
-                title: 'Kawah Bromo & Lautan Pasir Berbisik',
+                activityType: 'spot_wisata',
+                title: 'Kawah Bromo & Pura Luhur Poten',
+                hotelName: '',
+                jeepDriverId: null,
+                jeepDriverName: null,
+                jeepUnit: null,
+                jeepFee: 0,
                 operationalDesc: 'Guide lokal / masker',
-                operationalCost: 50000,
+                operationalCost: 30000,
                 ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Jalan kaki atau sewa kuda menuju bibir kawah'
@@ -2892,19 +3141,39 @@ const App = {
 
       const currentActs = App._currentTripItinerary || [];
       const dayMap = {};
+
+      const tripFieldDriverId = document.getElementById('trip-field-driver')?.value || (App._editingTripId ? (AppState.trips.find(t => t.id === App._editingTripId)?.fieldDriverId || null) : null);
+      const tripFieldDriver = AppState.workers.find(w => w.id === tripFieldDriverId);
+      const tripFieldFee = parseFloat(document.getElementById('trip-field-fee')?.value) || (tripFieldDriver?.baseRatePerTrip || 175000);
+
+      const tripJeepDriverId = document.getElementById('trip-jeep-driver')?.value || (App._editingTripId ? (AppState.trips.find(t => t.id === App._editingTripId)?.jeepDriverId || null) : null);
+      const tripJeepDriver = AppState.workers.find(w => w.id === tripJeepDriverId);
+      const tripJeepFee = parseFloat(document.getElementById('trip-jeep-fee')?.value) || (tripJeepDriver?.baseRatePerTrip || 250000);
+
       currentActs.forEach(item => {
         const dNum = parseInt(item.day, 10) || 1;
         if (!dayMap[dNum]) {
           dayMap[dNum] = {
             day: dNum,
             title: item.dayTitle || `Hari ${dNum}`,
+            fieldDriverId: item.dayFieldDriverId || (dNum === 1 ? tripFieldDriverId : null),
+            fieldDriverName: item.dayFieldDriverName || (dNum === 1 && tripFieldDriver ? tripFieldDriver.name : null),
+            fieldDriverUnit: item.dayFieldDriverUnit || (dNum === 1 && tripFieldDriver ? tripFieldDriver.vehicleUnit : null),
+            fieldDriverFee: item.dayFieldDriverFee || (dNum === 1 ? tripFieldFee : (tripFieldDriver?.baseRatePerTrip || 175000)),
             activities: []
           };
         }
+        const aType = item.activityType || App.inferActivityType(item);
         dayMap[dNum].activities.push({
           id: item.id || ('act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)),
           time: item.time || '',
+          activityType: aType,
           title: item.title || '',
+          hotelName: item.hotelName || (aType === 'hotel' ? (item.title.replace(/^Akomodasi:?\s*/i, '').replace(/^Check-in\s*Hotel:?\s*/i, '')) : ''),
+          jeepDriverId: item.jeepDriverId || ((aType === 'bromo_sunrise' || aType === 'milky_way') ? tripJeepDriverId : null),
+          jeepDriverName: item.jeepDriverName || ((aType === 'bromo_sunrise' || aType === 'milky_way') && tripJeepDriver ? tripJeepDriver.name : null),
+          jeepUnit: item.jeepUnit || ((aType === 'bromo_sunrise' || aType === 'milky_way') && tripJeepDriver ? tripJeepDriver.vehicleUnit : null),
+          jeepFee: item.jeepFee || ((aType === 'bromo_sunrise' || aType === 'milky_way') ? tripJeepFee : 0),
           operationalDesc: item.operationalDesc || '',
           operationalCost: parseFloat(item.operationalCost) || 0,
           ticketCost: parseFloat(item.ticketCost) || 0,
@@ -2919,26 +3188,42 @@ const App = {
           {
             day: 1,
             title: 'Hari 1 - Eksplorasi Bromo',
+            fieldDriverId: tripFieldDriverId,
+            fieldDriverName: tripFieldDriver?.name || null,
+            fieldDriverUnit: tripFieldDriver?.vehicleUnit || null,
+            fieldDriverFee: tripFieldFee,
             activities: [
               {
                 id: 'act-' + Date.now() + '-1',
-                time: '02:00',
-                title: 'Penjemputan Tamu',
+                time: '00:00 - 01:00 WIB',
+                activityType: 'shuttle_transfer',
+                title: 'Penjemputan Tamu di Meeting Point / Hotel',
+                hotelName: '',
+                jeepDriverId: null,
+                jeepDriverName: null,
+                jeepUnit: null,
+                jeepFee: 0,
                 operationalDesc: 'BBM Shuttle',
-                operationalCost: 100000,
+                operationalCost: 50000,
                 ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Standby tepat waktu'
               },
               {
                 id: 'act-' + Date.now() + '-2',
-                time: '03:30',
-                title: 'Sunrise Point Penanjakan',
-                operationalDesc: 'Jeep Bromo',
-                operationalCost: 150000,
+                time: '03:30 - 06:00 WIB',
+                activityType: 'bromo_sunrise',
+                title: 'Golden Sunrise Point Penanjakan 1',
+                hotelName: '',
+                jeepDriverId: tripJeepDriverId,
+                jeepDriverName: tripJeepDriver?.name || null,
+                jeepUnit: tripJeepDriver?.vehicleUnit || null,
+                jeepFee: tripJeepFee,
+                operationalDesc: 'Jeep Bromo 4x4',
+                operationalCost: 120000,
                 ticketCost: 54000,
                 hotelCost: 0,
-                notes: 'Spot foto golden sunrise'
+                notes: 'Spot golden sunrise kaldera Bromo'
               }
             ]
           }
@@ -2967,8 +3252,8 @@ const App = {
       : 'Penyusun Itinerary & Rincian Biaya Perjalanan';
 
     const modalSubtitle = isTemplateMode
-      ? 'Kelola rancangan rute master multi-hari, durasi, dan estimasi biaya acuan operasional, tiket, serta hotel'
-      : 'Atur jadwal multi-hari, kegiatan, dan rincian operasional, tiket, serta hotel untuk perjalanan ini';
+      ? 'Kelola rancangan rute master multi-hari, durasi, dan estimasi biaya acuan operasional, tiket, serta hotel (tanpa plotting kru)'
+      : 'Atur jadwal multi-hari, jenis kegiatan, serta penugasan driver lapangan tiap hari & driver jeep sunrise';
 
     const existingContainer = document.getElementById('itinerary-builder-modal-container');
     if (existingContainer) existingContainer.remove();
@@ -2976,277 +3261,475 @@ const App = {
     const container = document.createElement('div');
     container.id = 'itinerary-builder-modal-container';
     container.className = 'sub-modal-overlay';
-    container.onclick = (e) => {
-      if (e.target === container) {
-        App.closeItineraryBuilderModal();
-      }
-    };
-    document.body.appendChild(container);
-
     container.innerHTML = `
-      <div class="modal-content" style="max-width: 860px; max-height: 90vh; display: flex; flex-direction: column;">
-          <!-- Modal Header -->
-          <div class="modal-header" style="padding: 14px 18px; border-bottom: 1px solid var(--border-glass);">
-            <div>
-              <div style="font-weight: 800; font-size: 16px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                <span>${isTemplateMode ? '📑' : '🗺️'}</span>
-                <span>${modalTitle}</span>
-                ${isTemplateMode ? `<span class="badge" style="background: #e0f2fe; color: #0284c7; font-size: 10px; font-weight: 700;">Master Data</span>` : ''}
+      <div class="modal-content" style="max-width: 860px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; background: #ffffff; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.25);">
+        <!-- Modal Header -->
+        <div class="modal-header" style="padding: 14px 18px; border-bottom: 1px solid var(--border-glass); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 800; font-size: 15px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span>🧭</span>
+              <span id="modal-builder-title-text">${modalTitle}</span>
+              <span class="badge" style="background: ${isTemplateMode ? '#fef3c7' : '#e0f2fe'}; color: ${isTemplateMode ? '#b45309' : '#0369a1'}; font-weight: 700; font-size: 10px;">
+                ${isTemplateMode ? 'Template Master' : 'Rute Trip Operasional'}
+              </span>
+            </div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+              ${modalSubtitle}
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="App.closeItineraryBuilderModal()" title="Tutup">${Icons.x(16)}</button>
+        </div>
+
+        <!-- Modal Body Scrollable -->
+        <div class="modal-body" style="padding: 14px 18px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
+          ${isTemplateMode ? `
+            <!-- Template Header Config -->
+            <div style="background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <div class="builder-top-grid">
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Nama Paket Wisata / Template:*</label>
+                  <input type="text" id="modal-builder-tour-package" class="form-input" style="font-size: 12px;" value="${(s.tourPackage || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Bromo Sunrise Classic 4 Spot" required />
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Kategori Tur:*</label>
+                  <select id="modal-builder-category" class="form-select" style="font-size: 12px;">
+                    <option value="bromo_sunrise" ${s.category === 'bromo_sunrise' ? 'selected' : ''}>Sunrise Bromo</option>
+                    <option value="milky_way" ${s.category === 'milky_way' ? 'selected' : ''}>Milky Way Night</option>
+                    <option value="custom_trip" ${s.category === 'custom_trip' ? 'selected' : ''}>Custom / Private</option>
+                    <option value="open_trip" ${s.category === 'open_trip' ? 'selected' : ''}>Open Trip</option>
+                  </select>
+                </div>
               </div>
-              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
-                ${modalSubtitle}
+
+              <div class="builder-two-col">
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Estimasi Durasi Tur:*</label>
+                  <input type="text" id="modal-builder-duration" class="form-input" style="font-size: 12px;" value="${(s.duration || '').replace(/"/g, '&quot;')}" placeholder="Contoh: 12 Jam / 2 Hari 1 Malam" required oninput="App._builderState.duration = this.value" />
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Harga Paket Acuan (IDR):*</label>
+                  <input type="number" id="modal-builder-price" class="form-input" style="font-size: 12px;" value="${s.price || 0}" min="0" step="50000" placeholder="1750000" required />
+                </div>
+              </div>
+
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Deskripsi & Keunggulan Paket:</label>
+                <textarea id="modal-builder-desc" class="form-textarea" rows="2" style="font-size: 12px;" placeholder="Jelaskan ringkasan spot, fasilitas, dan keunggulan paket wisata ini...">${s.description || ''}</textarea>
+              </div>
+
+              <!-- Preset Cloner -->
+              <div class="builder-preset-strip">
+                <span style="font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap;">Salin dari Preset Lain:</span>
+                <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 4px 8px; flex: 1; min-width: 160px;">
+                  <option value="">-- Pilih Template Acuan (Opsional) --</option>
+                  ${AppState.templates.filter(t => t.id !== s.templateId).map(tpl => `
+                    <option value="${tpl.id}">${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})</option>
+                  `).join('')}
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; height: 32px; white-space: nowrap;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
+                  ${Icons.refreshCw(12)} <span>Muat</span>
+                </button>
+                <span class="preset-note" style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Salin struktur rute dari master lain</span>
               </div>
             </div>
-            <button type="button" class="btn btn-outline btn-sm" onclick="App.closeItineraryBuilderModal()">${Icons.x(16)}</button>
+          ` : `
+            <!-- Trip Itinerary Config -->
+            <div style="background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <div class="builder-top-grid">
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Nama Paket Wisata / Perjalanan:</label>
+                  <input type="text" id="modal-builder-tour-package" class="form-input" style="font-size: 12px;" value="${(s.tourPackage || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Bromo Sunrise Classic 4 Spot" />
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Estimasi Durasi Tur:</label>
+                  <input type="text" id="modal-builder-duration" class="form-input" style="font-size: 12px;" value="${(s.duration || '').replace(/"/g, '&quot;')}" placeholder="Contoh: 2 Hari 1 Malam / 12 Jam" oninput="App._builderState.duration = this.value" />
+                </div>
+              </div>
+
+              <!-- Preset Loader Strip -->
+              <div class="builder-preset-strip">
+                <span style="font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap;">Gunakan Preset:</span>
+                <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 5px 8px; flex: 1; min-width: 160px;">
+                  <option value="">-- Pilih Template Itinerary Master --</option>
+                  ${AppState.templates.map(tpl => `
+                    <option value="${tpl.id}">${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})</option>
+                  `).join('')}
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; white-space: nowrap; height: 32px;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
+                  ${Icons.refreshCw(12)} <span>Muat Preset</span>
+                </button>
+                <span class="preset-note" style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Template master tidak akan tertimpa.</span>
+              </div>
+            </div>
+          `}
+
+          <!-- Multi-Day Tabs Header -->
+          <div class="builder-day-tabs-wrapper">
+            <div id="builder-day-tabs" class="builder-day-tabs-scroll"></div>
+            <button type="button" class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; font-weight: 700; font-size: 11px; padding: 5px 10px; white-space: nowrap; flex-shrink: 0;" onclick="App.addBuilderDay()">
+              ${Icons.plus(12)} <span>+ Tambah Hari</span>
+            </button>
           </div>
 
-          <!-- Modal Body -->
-          <div class="modal-body" style="padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
-            ${isTemplateMode ? `
-              <!-- Template Master Fields Config -->
-              <div style="background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-                <div class="builder-top-grid">
+          <!-- Active Day Content Card -->
+          <div id="builder-day-view" style="background: #f8fafc; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+            <!-- Filled by App.renderBuilderDayView() -->
+          </div>
+
+          <!-- Total Budget Summary Card -->
+          <div class="builder-totals-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">Estimasi Total Pengeluaran Itinerary:</span>
+              <div style="font-size: 11px; color: #4ade80; color: #15803d;">Biaya langsung seluruh spot kegiatan di rute ini</div>
+            </div>
+            <div class="builder-totals-list" style="display: flex; gap: 12px; font-size: 12px; align-items: center; flex-wrap: wrap;">
+              <div>🛠️ Ops: <strong id="builder-total-op" style="color: #dc2626;">Rp 0</strong></div>
+              <div>🎟️ Tiket: <strong id="builder-total-ticket" style="color: #ea580c;">Rp 0</strong></div>
+              <div>🏨 Hotel: <strong id="builder-total-hotel" style="color: #7c3aed;">Rp 0</strong></div>
+              <div class="builder-grand-total-item" style="border-left: 2px solid #86efac; padding-left: 10px;">
+                Total: <strong id="builder-grand-total" style="font-size: 15px; color: #15803d; font-weight: 800;">Rp 0</strong>
+              </div>
+            </div>
+          </div>
+
+          ${!isTemplateMode ? `
+            <!-- Option to Save this Itinerary as New Master Template (Clean without crew) -->
+            <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 700; color: #1e293b; user-select: none;">
+                <input type="checkbox" id="builder-chk-save-as-template" onchange="App.toggleBuilderSaveAsTemplate(this.checked)" />
+                <span>Simpan juga sebagai Template Master Baru di Database (tanpa menyimpan kru)</span>
+              </label>
+              <div id="builder-save-as-template-fields" style="display: none; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 6px; border-top: 1px solid #e2e8f0;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
                   <div>
-                    <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Nama Paket Wisata / Template:*</label>
-                    <input type="text" id="modal-builder-tour-package" class="form-input" style="font-size: 12px;" value="${(s.tourPackage || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Bromo Sunrise Classic 4 Spot" required />
+                    <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Nama Template Master Baru:*</label>
+                    <input type="text" id="builder-new-template-name" class="form-input" style="font-size: 11px;" placeholder="Contoh: Bromo Sunrise 2D1N (Standar)" />
                   </div>
                   <div>
-                    <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Kategori Tur:*</label>
-                    <select id="modal-builder-category" class="form-select" style="font-size: 12px;">
-                      <option value="bromo_sunrise" ${s.category === 'bromo_sunrise' ? 'selected' : ''}>Sunrise Bromo</option>
-                      <option value="milky_way" ${s.category === 'milky_way' ? 'selected' : ''}>Milky Way Night</option>
-                      <option value="custom_trip" ${s.category === 'custom_trip' ? 'selected' : ''}>Custom / Private</option>
-                      <option value="open_trip" ${s.category === 'open_trip' ? 'selected' : ''}>Open Trip</option>
+                    <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Kategori Master:*</label>
+                    <select id="builder-new-template-category" class="form-select" style="font-size: 11px;">
+                      <option value="bromo_sunrise">Sunrise Bromo</option>
+                      <option value="milky_way">Milky Way Night</option>
+                      <option value="custom_trip">Custom / Private</option>
+                      <option value="open_trip">Open Trip</option>
                     </select>
                   </div>
                 </div>
-
-                <div class="builder-two-col">
-                  <div>
-                    <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Estimasi Durasi Tur:*</label>
-                    <input type="text" id="modal-builder-duration" class="form-input" style="font-size: 12px;" value="${(s.duration || '').replace(/"/g, '&quot;')}" placeholder="Contoh: 12 Jam / 2 Hari 1 Malam" required oninput="App._builderState.duration = this.value" />
-                  </div>
-                  <div>
-                    <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Harga Paket Acuan (IDR):*</label>
-                    <input type="number" id="modal-builder-price" class="form-input" style="font-size: 12px;" value="${s.price || 0}" min="0" step="50000" placeholder="1750000" required />
-                  </div>
-                </div>
-
                 <div>
-                  <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Deskripsi & Keunggulan Paket:</label>
-                  <textarea id="modal-builder-desc" class="form-textarea" rows="2" style="font-size: 12px;" placeholder="Jelaskan ringkasan spot, fasilitas, dan keunggulan paket wisata ini...">${s.description || ''}</textarea>
+                  <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Deskripsi Template Master:</label>
+                  <input type="text" id="builder-new-template-description" class="form-input" style="font-size: 11px;" placeholder="Keterangan singkat paket master untuk agen..." />
                 </div>
-
-                <!-- Preset Cloner -->
-                <div class="builder-preset-strip">
-                  <span style="font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap;">Salin dari Preset Lain:</span>
-                  <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 4px 8px; flex: 1; min-width: 160px;">
-                    <option value="">-- Pilih Template Acuan (Opsional) --</option>
-                    ${AppState.templates.filter(t => t.id !== s.templateId).map(tpl => `
-                      <option value="${tpl.id}">${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})</option>
-                    `).join('')}
-                  </select>
-                  <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; height: 32px; white-space: nowrap;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
-                    ${Icons.refreshCw(12)} <span>Muat</span>
-                  </button>
-                  <span class="preset-note" style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Salin struktur rute dari master lain</span>
+                <div style="font-size: 10px; color: #0284c7;">
+                  ℹ️ Template master akan tersimpan bersih berisi jenis spot, estimasi biaya, dan hotel tanpa data plotting kru.
                 </div>
-              </div>
-            ` : `
-              <!-- Trip Itinerary Config -->
-              <div style="background: #ffffff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-                <div class="builder-top-grid">
-                  <div>
-                    <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Nama Paket Wisata / Perjalanan:</label>
-                    <input type="text" id="modal-builder-tour-package" class="form-input" style="font-size: 12px;" value="${(s.tourPackage || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Bromo Sunrise Classic 4 Spot" />
-                  </div>
-                  <div>
-                    <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Estimasi Durasi Tur:</label>
-                    <input type="text" id="modal-builder-duration" class="form-input" style="font-size: 12px;" value="${(s.duration || '').replace(/"/g, '&quot;')}" placeholder="Contoh: 2 Hari 1 Malam / 12 Jam" oninput="App._builderState.duration = this.value" />
-                  </div>
-                </div>
-
-                <!-- Preset Loader Strip -->
-                <div class="builder-preset-strip">
-                  <span style="font-size: 11px; font-weight: 700; color: #475569; white-space: nowrap;">Gunakan Preset:</span>
-                  <select id="builder-preset-select" class="form-select" style="font-size: 12px; padding: 5px 8px; flex: 1; min-width: 160px;">
-                    <option value="">-- Pilih Template Itinerary Master --</option>
-                    ${AppState.templates.map(tpl => `
-                      <option value="${tpl.id}">${tpl.name} (${tpl.duration || '12 Jam'} - ${formatIDR(tpl.defaultPrice)})</option>
-                    `).join('')}
-                  </select>
-                  <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; white-space: nowrap; height: 32px;" onclick="App.applyPresetToBuilder(document.getElementById('builder-preset-select')?.value)">
-                    ${Icons.refreshCw(12)} <span>Muat Preset</span>
-                  </button>
-                  <span class="preset-note" style="font-size: 10px; color: #94a3b8; font-style: italic; margin-left: auto;">*Template master tidak akan tertimpa.</span>
-                </div>
-              </div>
-            `}
-
-            <!-- Multi-Day Tabs Header -->
-            <div class="builder-day-tabs-wrapper">
-              <div id="builder-day-tabs" class="builder-day-tabs-scroll"></div>
-              <button type="button" class="btn btn-outline btn-sm" style="color: #059669; border-color: #a7f3d0; font-weight: 700; font-size: 11px; padding: 5px 10px; white-space: nowrap; flex-shrink: 0;" onclick="App.addBuilderDay()">
-                ${Icons.plus(12)} <span>+ Tambah Hari</span>
-              </button>
-            </div>
-
-            <!-- Active Day Content Card -->
-            <div id="builder-day-view" style="background: #f8fafc; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-              <!-- Filled by App.renderBuilderDayView() -->
-            </div>
-
-            <!-- Total Budget Summary Card -->
-            <div class="builder-totals-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">
-                Rincian Biaya Rute Seluruh Hari:
-              </div>
-              <div class="builder-totals-list" style="display: flex; gap: 14px; font-size: 11px; flex-wrap: wrap;">
-                <span>🛠️ Total Ops: <strong id="builder-total-op" style="color: #dc2626;">Rp 0</strong></span>
-                <span>🎟️ Total Tiket: <strong id="builder-total-ticket" style="color: #ea580c;">Rp 0</strong></span>
-                <span>🏨 Total Hotel: <strong id="builder-total-hotel" style="color: #7c3aed;">Rp 0</strong></span>
-                <span class="builder-grand-total-item" style="padding-left: 6px; border-left: 2px solid #86efac;">💎 Grand Total: <strong id="builder-grand-total" style="color: #166534; font-size: 13px;">Rp 0</strong></span>
               </div>
             </div>
-
-            ${!isTemplateMode ? `
-              <!-- Save as New Template Option (Only for Trip mode) -->
-              <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
-                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; user-select: none; margin-bottom: 0;">
-                  <input type="checkbox" id="builder-chk-save-as-template" onchange="App.toggleBuilderSaveAsTemplate(this.checked)" style="margin-top: 3px; accent-color: #059669; width: 16px; height: 16px;" />
-                  <div>
-                    <div style="font-weight: 700; font-size: 12px; color: #0f172a;">Simpan susunan rute multi-hari ini sebagai Template Baru di Master Data</div>
-                    <div style="font-size: 11px; color: #64748b;">Jadikan preset rute baru untuk dipakai di masa depan. <strong>Template master yang ada tidak akan pernah terubah.</strong></div>
-                  </div>
-                </label>
-
-                <div id="builder-save-as-template-fields" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; flex-direction: column; gap: 8px;">
-                  <div>
-                    <label style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">Nama Template Baru:*</label>
-                    <input type="text" id="builder-new-template-name" class="form-input" style="font-size: 12px; padding: 6px 10px;" placeholder="Contoh: Paket 2D1N Bromo Sunrise + Coban Pelangi" />
-                  </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">Kategori:</label>
-                      <select id="builder-new-template-category" class="form-select" style="font-size: 12px;">
-                        <option value="custom_trip">Custom Trip</option>
-                        <option value="bromo_sunrise">Bromo Sunrise</option>
-                        <option value="milky_way">Milky Way Malam</option>
-                        <option value="open_trip">Open Trip</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 2px;">Deskripsi Singkat:</label>
-                      <input type="text" id="builder-new-template-description" class="form-input" style="font-size: 12px; padding: 6px 10px;" placeholder="Fasilitas dan highlight trip" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="modal-footer builder-modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-glass); display: flex; justify-content: space-between;">
-            <button type="button" class="btn btn-outline" onclick="App.closeItineraryBuilderModal()">Batal</button>
-            <button type="button" id="btn-submit-builder" class="btn btn-primary" onclick="App.saveItineraryBuilder()" style="display: flex; align-items: center; gap: 6px; font-weight: 700;">
-              ${Icons.check(14)} <span>${isTemplateMode ? (isEditTpl ? 'Simpan Perubahan Master' : 'Buat Template Master') : 'Simpan & Terapkan ke Trip'}</span>
-            </button>
-          </div>
+          ` : ''}
         </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer builder-modal-footer" style="padding: 12px 18px; border-top: 1px solid var(--border-glass); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn btn-outline" onclick="App.closeItineraryBuilderModal()">Batal</button>
+          <button type="button" class="btn btn-primary" id="btn-submit-builder" onclick="App.saveItineraryBuilder()" style="display: flex; align-items: center; gap: 6px; font-weight: 700; background: #059669; border-color: #059669;">
+            ${Icons.check(14)}
+            <span>${isTemplateMode ? (isEditTpl ? 'Simpan Perubahan Master' : 'Buat Template Master') : 'Terapkan ke Perjalanan (Trip)'}</span>
+          </button>
+        </div>
+
+        <!-- Global Datalist for Hotel Recommendations -->
+        <datalist id="hotel-preset-datalist">
+          <option value="Hotel Tugu Malang">
+          <option value="Grand Mercure Malang Mirama">
+          <option value="Hotel Santika Premiere Malang">
+          <option value="Lava View Lodge Bromo">
+          <option value="Bromo Terrace Hotel">
+          <option value="Whiz Prime Hotel Bromo">
+          <option value="Plataran Bromo Resort & Spa">
+          <option value="Jiwa Jawa Resort Bromo">
+          <option value="Swiss-Belinn Malang">
+          <option value="Ijen Suites Resort & Convention Malang">
+          <option value="Hotel Harris Malang">
+          <option value="Cemara Indah Hotel Bromo">
+        </datalist>
+      </div>
     `;
+
+    document.body.appendChild(container);
 
     App.renderBuilderDayTabs();
     App.renderBuilderDayView();
   },
 
   renderBuilderDayTabs() {
-    const tabsContainer = document.getElementById('builder-day-tabs');
-    if (!tabsContainer) return;
     const s = App._builderState;
-    tabsContainer.innerHTML = s.days.map(d => `
-      <button type="button" class="builder-day-tab ${d.day === s.activeDay ? 'active' : ''}" onclick="App.switchBuilderDay(${d.day})">
-        <span>📅 Hari ${d.day}</span>
-        <span class="badge" style="font-size: 10px; background: rgba(0,0,0,0.08); padding: 1px 5px;">${d.activities.length}</span>
-        ${s.days.length > 1 ? `<span onclick="event.stopPropagation(); App.removeBuilderDay(${d.day});" style="margin-left: 4px; color: #ef4444; font-size: 13px;" title="Hapus Hari">&times;</span>` : ''}
-      </button>
+    const container = document.getElementById('builder-day-tabs');
+    if (!container) return;
+
+    container.innerHTML = s.days.map(d => `
+      <div class="builder-day-tab ${d.day === s.activeDay ? 'active' : ''}" onclick="App.switchBuilderDay(${d.day})">
+        <span>Hari ${d.day}</span>
+        ${s.mode === 'trip' && d.fieldDriverName ? `<span style="font-size: 9px; opacity: 0.9;">(🚐 ${d.fieldDriverName.split(' ')[0]})</span>` : ''}
+        <span class="badge" style="font-size: 9px; padding: 1px 5px; background: ${d.day === s.activeDay ? 'rgba(255,255,255,0.25)' : '#e2e8f0'}; color: ${d.day === s.activeDay ? '#ffffff' : '#475569'};">${d.activities.length} spot</span>
+      </div>
     `).join('');
   },
 
   renderBuilderDayView() {
+    const s = App._builderState;
     const container = document.getElementById('builder-day-view');
     if (!container) return;
-    const s = App._builderState;
-    const curDay = s.days.find(d => d.day === s.activeDay) || s.days[0];
+
+    const curDay = s.days.find(d => d.day === s.activeDay);
     if (!curDay) return;
 
+    const isTemplateMode = (s.mode === 'template');
+    const fieldDrivers = AppState.workers.filter(w => w.role === 'driver_lapangan');
+    const jeepDrivers = AppState.workers.filter(w => w.role === 'driver_jeep');
+    const tripDate = document.getElementById('trip-date')?.value || new Date().toISOString().split('T')[0];
+    const tripTimeSlot = document.getElementById('trip-time-slot')?.value || '02:00 WIB (Sunrise)';
+    const editTripId = App._editingTripId || null;
+
+    // Field Driver Detail card for active day in trip mode
+    let dayFieldDriverDetail = '';
+    if (!isTemplateMode && curDay.fieldDriverId) {
+      const fWorker = AppState.workers.find(w => w.id === curDay.fieldDriverId);
+      if (fWorker) {
+        const avail = App.getCrewAvailability(fWorker.id, tripDate, tripTimeSlot, editTripId);
+        dayFieldDriverDetail = `
+          <div style="font-size: 11px; padding: 6px 10px; background: #ffffff; border: 1px solid #bae6fd; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+            <div>
+              <strong style="color: #0369a1;">${fWorker.name}</strong> (${(fWorker.type || 'internal').toUpperCase()})
+              <span style="color: #64748b;"> &bull; Armada: <strong>${fWorker.vehicleUnit || 'HiAce / Shuttle'}</strong></span>
+              ${fWorker.phone ? ` &bull; WA: <a href="${createWhatsAppUrl(fWorker.phone, '')}" target="_blank" style="color: #059669; font-weight: 600;">${fWorker.phone}</a>` : ''}
+            </div>
+            <div>
+              <span class="badge ${avail.isAvailable ? 'badge-internal' : 'badge-danger'}" style="font-size: 10px;">${avail.badgeText}</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
     container.innerHTML = `
+      <!-- Day Header -->
       <div class="builder-day-header">
-        <div style="flex: 1;">
-          <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">
-            Tema / Rencana Hari ${curDay.day}:
-          </label>
-          <input type="text" class="form-input" style="font-size: 12px; padding: 5px 8px; font-weight: 600;" value="${(curDay.title || '').replace(/"/g, '&quot;')}" placeholder="Contoh: Eksplorasi Bromo & Kawah Adventure" oninput="App.onActiveDayTitleChange(this.value)" />
+        <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+          <span style="font-weight: 800; font-size: 13px; color: #0284c7; white-space: nowrap;">📅 Hari ${curDay.day}:</span>
+          <input type="text" class="form-input" style="font-size: 12px; font-weight: 700; flex: 1; min-width: 160px;" value="${(curDay.title || '').replace(/"/g, '&quot;')}" oninput="App.onActiveDayTitleChange(this.value)" placeholder="Rute / Agenda Hari ${curDay.day}" />
         </div>
-        <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; height: 32px; white-space: nowrap;" onclick="App.addBuilderActivity()">
-          ${Icons.plus(12)} <span>+ Tambah Kegiatan di Hari Ini</span>
+        ${s.days.length > 1 ? `
+          <button type="button" class="btn btn-danger btn-sm" style="font-size: 11px; padding: 4px 8px; white-space: nowrap;" onclick="App.removeBuilderDay(${curDay.day})">
+            ${Icons.trash(12)} <span>Hapus Hari</span>
+          </button>
+        ` : ''}
+      </div>
+
+      <!-- Field Driver Plotting Per Day (Trip Mode Only) -->
+      ${!isTemplateMode ? `
+        <div class="builder-day-driver-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 800; font-size: 12px; color: #0369a1; display: flex; align-items: center; gap: 6px;">
+              <span>🚐 Plotting Driver Lapangan / Shuttle (Hari ${curDay.day}):</span>
+            </div>
+            <span style="font-size: 10px; color: #0284c7; font-weight: 600;">Pilihan Driver Lapangan per Hari</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 140px; gap: 8px;">
+            <div>
+              <select class="form-select day-field-driver-select" style="font-size: 11px; font-weight: 600;" onchange="App.onDayFieldDriverChange(${curDay.day}, this.value)">
+                <option value="">-- Belum Ditugaskan / Tanpa Driver Lapangan --</option>
+                ${fieldDrivers.map(w => {
+                  const avail = App.getCrewAvailability(w.id, tripDate, tripTimeSlot, editTripId);
+                  return `
+                    <option value="${w.id}" data-name="${w.name}" data-unit="${w.vehicleUnit || 'HiAce'}" data-rate="${w.baseRatePerTrip}" ${curDay.fieldDriverId === w.id ? 'selected' : ''}>
+                      ${w.name} (${(w.type || 'internal').toUpperCase()}) • ${w.vehicleUnit || 'Shuttle'} • ${avail.badgeText}
+                    </option>
+                  `;
+                }).join('')}
+              </select>
+            </div>
+            <div>
+              <input type="number" class="form-input day-field-driver-fee" style="font-size: 11px;" placeholder="Tarif Driver" min="0" step="5000" value="${curDay.fieldDriverFee || 175000}" title="Tarif / Honor Driver Lapangan Hari ${curDay.day}" oninput="App.onDayFieldDriverFeeChange(${curDay.day}, this.value)" />
+            </div>
+          </div>
+          ${dayFieldDriverDetail}
+        </div>
+      ` : `
+        <div style="font-size: 10px; color: #0369a1; background: #f0f9ff; border: 1px dashed #bae6fd; border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; gap: 6px;">
+          <span>ℹ️ <em>Template Master: Driver lapangan per hari diatur saat penyusunan trip perjalanan (bukan di template master).</em></span>
+        </div>
+      `}
+
+      <!-- Activities List Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+        <span style="font-size: 12px; font-weight: 800; color: #0f172a;">
+          Daftar Kegiatan & Spot Wisata Hari ${curDay.day} (${curDay.activities.length} Kegiatan):
+        </span>
+        <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; color: #0284c7; border-color: #bae6fd; padding: 4px 8px;" onclick="App.addBuilderActivity()">
+          ${Icons.plus(12)} <span>+ Tambah Kegiatan</span>
         </button>
       </div>
 
-      <div id="builder-activities-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 42vh; overflow-y: auto; padding-right: 4px;">
-        ${curDay.activities.length === 0 ? `
-          <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12px; font-style: italic;">
-            Belum ada kegiatan di Hari ${curDay.day}. Klik tombol "+ Tambah Kegiatan di Hari Ini" di atas.
-          </div>
-        ` : curDay.activities.map((act, idx) => `
-          <div class="builder-activity-card" data-idx="${idx}">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 11px; font-weight: 700; color: #0284c7;">Kegiatan #${idx + 1}</span>
-              <button type="button" class="btn btn-danger btn-sm" style="padding: 2px 6px; font-size: 10px;" onclick="App.removeBuilderActivity(${idx})" title="Hapus Kegiatan">
-                ${Icons.trash(12)}
-              </button>
-            </div>
+      <!-- Activities Cards -->
+      <div id="builder-activities-list" style="display: flex; flex-direction: column; gap: 8px;">
+        ${curDay.activities.map((act, idx) => {
+          const actType = act.activityType || App.inferActivityType(act);
+          const typeObj = App.ACTIVITY_TYPES.find(t => t.id === actType) || App.ACTIVITY_TYPES[0];
 
-            <!-- Time & Activity Title -->
-            <div class="builder-act-header-grid">
-              <div>
-                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Jam / Waktu (Opsional):</label>
-                <input type="text" class="form-input act-time" style="font-size: 11px; padding: 4px 8px;" placeholder="03:30 / Fleksibel" value="${(act.time || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
-              </div>
-              <div>
-                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Nama Kegiatan / Spot Wisata:*</label>
-                <input type="text" class="form-input act-title" style="font-size: 11px; padding: 4px 8px; font-weight: 600;" placeholder="Nama spot / agenda kegiatan" value="${(act.title || '').replace(/"/g, '&quot;')}" required oninput="App.syncBuilderCardToState(${idx})" />
-              </div>
-            </div>
+          let jeepDetailInfo = '';
+          if (!isTemplateMode && act.jeepDriverId) {
+            const jWorker = AppState.workers.find(w => w.id === act.jeepDriverId);
+            if (jWorker) {
+              const avail = App.getCrewAvailability(jWorker.id, tripDate, tripTimeSlot, editTripId);
+              jeepDetailInfo = `
+                <div style="font-size: 10px; padding: 4px 8px; background: #ffffff; border: 1px solid #fde68a; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                  <div>
+                    <strong style="color: #b45309;">${jWorker.name}</strong> (${(jWorker.type || 'internal').toUpperCase()})
+                    <span style="color: #64748b;"> &bull; Armada: <strong>${jWorker.vehicleUnit || 'Hardtop 4x4'}</strong></span>
+                    ${jWorker.phone ? ` &bull; WA: <a href="${createWhatsAppUrl(jWorker.phone, '')}" target="_blank" style="color: #059669; font-weight: 600;">${jWorker.phone}</a>` : ''}
+                  </div>
+                  <span class="badge ${avail.isAvailable ? 'badge-internal' : 'badge-danger'}" style="font-size: 9px;">${avail.badgeText}</span>
+                </div>
+              `;
+            }
+          }
 
-            <!-- Costs Grid -->
-            <div class="builder-cost-grid">
-              <div>
-                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Operasional (IDR):</label>
-                <input type="number" class="form-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.operationalCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
-              </div>
-              <div>
-                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Tiket (IDR):</label>
-                <input type="number" class="form-input act-ticket-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.ticketCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
-              </div>
-              <div>
-                <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Hotel / Nginap (IDR):</label>
-                <input type="number" class="form-input act-hotel-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="10000" value="${act.hotelCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
-              </div>
-            </div>
+          return `
+            <div class="builder-activity-card" data-idx="${idx}">
+              <!-- Top bar: Kegiatan #idx, Activity Type Selector, and Delete button -->
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px;">
+                  <span style="font-size: 11px; font-weight: 800; color: #0284c7; white-space: nowrap;">Kegiatan #${idx + 1}</span>
+                  
+                  <!-- Jenis Kegiatan Selector -->
+                  <div style="flex: 1; min-width: 200px;">
+                    <select class="form-select act-type" style="font-size: 11px; font-weight: 700; padding: 4px 8px; border-color: ${typeObj.color};" onchange="App.onBuilderActivityTypeChange(${idx}, this.value)">
+                      ${App.ACTIVITY_TYPES.map(t => `
+                        <option value="${t.id}" ${actType === t.id ? 'selected' : ''}>${t.label}</option>
+                      `).join('')}
+                    </select>
+                  </div>
+                </div>
 
-            <!-- Notes & Operational Description -->
-            <div class="builder-act-notes-grid">
-              <div>
-                <label style="font-size: 10px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px;">Keterangan Operasional:</label>
-                <input type="text" class="form-input act-op-desc" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Sewa jeep, armada shuttle, bensin" value="${(act.operationalDesc || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+                <button type="button" class="btn btn-danger btn-sm" style="padding: 2px 8px; font-size: 11px;" onclick="App.removeBuilderActivity(${idx})" title="Hapus Kegiatan">
+                  ${Icons.trash(12)} <span>Hapus</span>
+                </button>
               </div>
-              <div>
-                <label style="font-size: 10px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px;">Catatan Khusus Aktivitas:</label>
-                <input type="text" class="form-input act-notes" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Bawa jaket tebal, voucher kamar" value="${(act.notes || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+
+              <!-- Time & Title Grid -->
+              <div class="builder-act-header-grid">
+                <div>
+                  <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Jam / Waktu (Opsional):</label>
+                  <input type="text" class="form-input act-time" style="font-size: 11px; padding: 4px 8px;" placeholder="03:30 / Fleksibel" value="${(act.time || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+                </div>
+                <div>
+                  <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">
+                    ${actType === 'hotel' ? 'Nama Agenda / Check-in Hotel:*' : 'Nama Kegiatan / Agenda:*'}
+                  </label>
+                  <input type="text" class="form-input act-title" style="font-size: 11px; padding: 4px 8px; font-weight: 600;" placeholder="${actType === 'hotel' ? 'Contoh: Check-in Hotel & Istirahat' : 'Nama spot / agenda kegiatan'}" value="${(act.title || '').replace(/"/g, '&quot;')}" required oninput="App.syncBuilderCardToState(${idx})" />
+                </div>
+              </div>
+
+              <!-- Special Conditional: Akomodasi (Hotel) -->
+              ${actType === 'hotel' ? `
+                <div class="builder-hotel-box">
+                  <div style="font-size: 11px; font-weight: 700; color: #6d28d9; display: flex; align-items: center; gap: 6px;">
+                    <span>🏨 Detail Akomodasi Hotel:</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                    <div>
+                      <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Nama Hotel / Penginapan:*</label>
+                      <input type="text" list="hotel-preset-datalist" class="form-input act-hotel-name" style="font-size: 11px; padding: 4px 8px; font-weight: 700; color: #4c1d95; border-color: #a78bfa;" placeholder="Ketik atau pilih nama hotel..." value="${(act.hotelName || '').replace(/"/g, '&quot;')}" oninput="App.onHotelNameInput(${idx}, this.value)" />
+                    </div>
+                    <div>
+                      <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Pilihan Cepat Hotel:</label>
+                      <select class="form-select" style="font-size: 11px; padding: 4px 6px;" onchange="if(this.value){ App.onHotelNameInput(${idx}, this.value); }">
+                        <option value="">-- Hotel Populer --</option>
+                        ${(typeObj.presetHotels || []).map(h => `<option value="${h}" ${act.hotelName === h ? 'selected' : ''}>${h}</option>`).join('')}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+
+              <!-- Special Conditional: Bromo Sunrise/Sunset Jeep Driver Plotting -->
+              ${(actType === 'bromo_sunrise' || actType === 'milky_way') ? (
+                !isTemplateMode ? `
+                  <div class="builder-jeep-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <div style="font-size: 11px; font-weight: 800; color: #b45309; display: flex; align-items: center; gap: 6px;">
+                        <span>🚙 Plotting Driver Jeep Bromo & Armada 4x4:</span>
+                      </div>
+                      <span style="font-size: 10px; color: #92400e; font-weight: 600;">Spot Golden Sunrise & Kaldera</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 140px; gap: 8px;">
+                      <div>
+                        <select class="form-select act-jeep-driver" style="font-size: 11px; padding: 4px 8px; font-weight: 600;" onchange="App.onActivityJeepDriverChange(${idx}, this.value)">
+                          <option value="">-- Pilih Driver Jeep & Unit 4x4 --</option>
+                          ${jeepDrivers.map(w => {
+                            const avail = App.getCrewAvailability(w.id, tripDate, tripTimeSlot, editTripId);
+                            return `
+                              <option value="${w.id}" data-name="${w.name}" data-unit="${w.vehicleUnit || 'Hardtop'}" data-rate="${w.baseRatePerTrip}" ${act.jeepDriverId === w.id ? 'selected' : ''}>
+                                ${w.name} (${(w.type || 'internal').toUpperCase()}) • ${w.vehicleUnit || 'Hardtop'} • ${avail.badgeText}
+                              </option>
+                            `;
+                          }).join('')}
+                        </select>
+                      </div>
+                      <div>
+                        <input type="number" class="form-input act-jeep-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="Tarif Jeep" min="0" step="5000" value="${act.jeepFee || 250000}" title="Tarif / Honor Driver Jeep" oninput="App.syncBuilderCardToState(${idx})" />
+                      </div>
+                    </div>
+                    ${jeepDetailInfo}
+                  </div>
+                ` : `
+                  <div style="font-size: 10px; color: #b45309; background: #fffbeb; border: 1px dashed #fde68a; border-radius: 6px; padding: 5px 8px; display: flex; align-items: center; gap: 6px;">
+                    <span>ℹ️ <em>Template Master: Driver jeep di-plot saat membuat perjalanan (Trip), bukan di template master.</em></span>
+                  </div>
+                `
+              ) : ''}
+
+              <!-- Preset Spot Recommendations -->
+              ${(typeObj.presetSpots && typeObj.presetSpots.length > 0) ? `
+                <div class="builder-spot-chips">
+                  <span style="font-size: 10px; color: #64748b; font-weight: 600;">Rekomendasi Spot:</span>
+                  ${typeObj.presetSpots.map(sp => `
+                    <button type="button" class="builder-spot-chip-btn" onclick="App.pickSpotPreset(${idx}, '${sp.replace(/'/g, "\'")}')">
+                      ${sp}
+                    </button>
+                  `).join('')}
+                </div>
+              ` : ''}
+
+              <!-- Costs Grid -->
+              <div class="builder-cost-grid">
+                <div>
+                  <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Operasional (IDR):</label>
+                  <input type="number" class="form-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.operationalCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                </div>
+                <div>
+                  <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Tiket / Retribusi (IDR):</label>
+                  <input type="number" class="form-input act-ticket-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.ticketCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                </div>
+                <div>
+                  <label style="font-size: 10px; font-weight: 600; color: ${actType === 'hotel' ? '#6d28d9' : '#475569'}; display: block; margin-bottom: 2px;">Biaya Hotel / Nginap (IDR):</label>
+                  <input type="number" class="form-input act-hotel-cost" style="font-size: 11px; padding: 4px 8px; ${actType === 'hotel' ? 'border-color: #a78bfa; font-weight: 700; color: #6d28d9; background: #faf5ff;' : ''}" placeholder="0" min="0" step="10000" value="${act.hotelCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                </div>
+              </div>
+
+              <!-- Notes & Operational Description -->
+              <div class="builder-act-notes-grid">
+                <div>
+                  <label style="font-size: 10px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px;">Keterangan Operasional:</label>
+                  <input type="text" class="form-input act-op-desc" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Sewa jeep, armada shuttle, bensin" value="${(act.operationalDesc || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+                </div>
+                <div>
+                  <label style="font-size: 10px; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px;">Catatan Khusus Aktivitas:</label>
+                  <input type="text" class="form-input act-notes" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Bawa jaket tebal, voucher kamar" value="${(act.notes || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+                </div>
               </div>
             </div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
     `;
 
@@ -3257,6 +3740,143 @@ const App = {
     const s = App._builderState;
     const curDay = s.days.find(d => d.day === s.activeDay);
     if (curDay) curDay.title = val;
+  },
+
+  onDayFieldDriverChange(dayNum, workerId) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === dayNum);
+    if (!curDay) return;
+
+    curDay.fieldDriverId = workerId || null;
+    const w = AppState.workers.find(u => u.id === workerId);
+    if (w) {
+      curDay.fieldDriverName = w.name;
+      curDay.fieldDriverUnit = w.vehicleUnit || 'HiAce / Shuttle';
+      if (!curDay.fieldDriverFee || curDay.fieldDriverFee === 0) {
+        curDay.fieldDriverFee = w.baseRatePerTrip || 175000;
+      }
+    } else {
+      curDay.fieldDriverName = null;
+      curDay.fieldDriverUnit = null;
+    }
+
+    App.renderBuilderDayTabs();
+    App.renderBuilderDayView();
+  },
+
+  onDayFieldDriverFeeChange(dayNum, fee) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === dayNum);
+    if (curDay) {
+      curDay.fieldDriverFee = parseFloat(fee) || 0;
+    }
+  },
+
+  onBuilderActivityTypeChange(actIdx, newType) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (!curDay || !curDay.activities[actIdx]) return;
+    const act = curDay.activities[actIdx];
+
+    const typeObj = App.ACTIVITY_TYPES.find(t => t.id === newType) || App.ACTIVITY_TYPES[0];
+    act.activityType = newType;
+
+    // Adjust costs automatically based on activity type
+    act.operationalCost = typeObj.defaultOpCost;
+    act.ticketCost = typeObj.defaultTicketCost;
+    act.hotelCost = typeObj.defaultHotelCost;
+
+    if (!act.time && typeObj.defaultTime) {
+      act.time = typeObj.defaultTime;
+    }
+    if (!act.operationalDesc && typeObj.defaultOpDesc) {
+      act.operationalDesc = typeObj.defaultOpDesc;
+    }
+    if (!act.notes && typeObj.defaultNotes) {
+      act.notes = typeObj.defaultNotes;
+    }
+
+    if (newType === 'hotel') {
+      if (!act.hotelName) {
+        act.hotelName = 'Hotel Tugu Malang';
+      }
+      act.title = `Akomodasi: ${act.hotelName}`;
+    } else if (newType === 'bromo_sunrise' || newType === 'milky_way') {
+      act.title = typeObj.defaultTitle;
+      // Default to trip's jeep driver if trip mode
+      if (s.mode === 'trip' && !act.jeepDriverId) {
+        const tripJeepId = document.getElementById('trip-jeep-driver')?.value || (App._editingTripId ? (AppState.trips.find(t => t.id === App._editingTripId)?.jeepDriverId || null) : null);
+        if (tripJeepId) {
+          const w = AppState.workers.find(u => u.id === tripJeepId);
+          if (w) {
+            act.jeepDriverId = w.id;
+            act.jeepDriverName = w.name;
+            act.jeepUnit = w.vehicleUnit || 'Hardtop 4x4';
+            act.jeepFee = parseFloat(document.getElementById('trip-jeep-fee')?.value) || w.baseRatePerTrip || 250000;
+          }
+        }
+      }
+    } else {
+      act.title = typeObj.defaultTitle;
+    }
+
+    App.renderBuilderDayView();
+    App.updateBuilderTotals();
+  },
+
+  onHotelNameInput(actIdx, hotelName) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (!curDay || !curDay.activities[actIdx]) return;
+    const act = curDay.activities[actIdx];
+
+    act.hotelName = hotelName;
+    act.title = hotelName ? `Akomodasi: ${hotelName}` : 'Check-in Hotel & Istirahat';
+
+    const card = document.querySelectorAll('#builder-activities-list .builder-activity-card')[actIdx];
+    if (card) {
+      const titleInp = card.querySelector('.act-title');
+      if (titleInp) titleInp.value = act.title;
+      const hotelInp = card.querySelector('.act-hotel-name');
+      if (hotelInp && hotelInp.value !== hotelName) hotelInp.value = hotelName;
+    }
+    App.syncBuilderCardToState(actIdx);
+  },
+
+  onActivityJeepDriverChange(actIdx, workerId) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (!curDay || !curDay.activities[actIdx]) return;
+    const act = curDay.activities[actIdx];
+
+    act.jeepDriverId = workerId || null;
+    const w = AppState.workers.find(u => u.id === workerId);
+    if (w) {
+      act.jeepDriverName = w.name;
+      act.jeepUnit = w.vehicleUnit || 'Hardtop 4x4';
+      if (!act.jeepFee || act.jeepFee === 0) {
+        act.jeepFee = w.baseRatePerTrip || 250000;
+      }
+    } else {
+      act.jeepDriverName = null;
+      act.jeepUnit = null;
+    }
+
+    App.renderBuilderDayView();
+  },
+
+  pickSpotPreset(actIdx, spotTitle) {
+    const s = App._builderState;
+    const curDay = s.days.find(d => d.day === s.activeDay);
+    if (!curDay || !curDay.activities[actIdx]) return;
+
+    curDay.activities[actIdx].title = spotTitle;
+    const card = document.querySelectorAll('#builder-activities-list .builder-activity-card')[actIdx];
+    if (card) {
+      const titleInp = card.querySelector('.act-title');
+      if (titleInp) titleInp.value = spotTitle;
+    }
+    App.syncBuilderCardToState(actIdx);
   },
 
   syncBuilderCardToState(idx) {
@@ -3270,6 +3890,12 @@ const App = {
 
     curDay.activities[idx].time = card.querySelector('.act-time')?.value.trim() || '';
     curDay.activities[idx].title = card.querySelector('.act-title')?.value.trim() || '';
+    if (card.querySelector('.act-hotel-name')) {
+      curDay.activities[idx].hotelName = card.querySelector('.act-hotel-name')?.value.trim() || '';
+    }
+    if (card.querySelector('.act-jeep-fee')) {
+      curDay.activities[idx].jeepFee = parseFloat(card.querySelector('.act-jeep-fee')?.value) || 0;
+    }
     curDay.activities[idx].operationalCost = parseFloat(card.querySelector('.act-op-cost')?.value) || 0;
     curDay.activities[idx].ticketCost = parseFloat(card.querySelector('.act-ticket-cost')?.value) || 0;
     curDay.activities[idx].hotelCost = parseFloat(card.querySelector('.act-hotel-cost')?.value) || 0;
@@ -3282,17 +3908,33 @@ const App = {
   addBuilderDay() {
     const s = App._builderState;
     const nextDayNum = s.days.length + 1;
+    const day1 = s.days[0];
+    const defDriverId = s.mode === 'trip' && day1 ? day1.fieldDriverId : null;
+    const defDriverName = s.mode === 'trip' && day1 ? day1.fieldDriverName : null;
+    const defDriverUnit = s.mode === 'trip' && day1 ? day1.fieldDriverUnit : null;
+    const defDriverFee = s.mode === 'trip' && day1 ? day1.fieldDriverFee : 175000;
+
     s.days.push({
       day: nextDayNum,
       title: `Hari ${nextDayNum} - Eksplorasi Lanjutan`,
+      fieldDriverId: defDriverId,
+      fieldDriverName: defDriverName,
+      fieldDriverUnit: defDriverUnit,
+      fieldDriverFee: defDriverFee,
       activities: [
         {
           id: 'act-' + Date.now(),
-          time: '',
+          time: '08:00 WIB',
+          activityType: 'spot_wisata',
           title: 'Kegiatan Hari ' + nextDayNum,
+          hotelName: '',
+          jeepDriverId: null,
+          jeepDriverName: null,
+          jeepUnit: null,
+          jeepFee: 0,
           operationalDesc: '',
-          operationalCost: 0,
-          ticketCost: 0,
+          operationalCost: 30000,
+          ticketCost: 35000,
           hotelCost: 0,
           notes: ''
         }
@@ -3347,10 +3989,16 @@ const App = {
     curDay.activities.push({
       id: 'act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       time: '',
-      title: '',
+      activityType: 'spot_wisata',
+      title: 'Kunjungan Spot Baru',
+      hotelName: '',
+      jeepDriverId: null,
+      jeepDriverName: null,
+      jeepUnit: null,
+      jeepFee: 0,
       operationalDesc: '',
-      operationalCost: 0,
-      ticketCost: 0,
+      operationalCost: 30000,
+      ticketCost: 35000,
       hotelCost: 0,
       notes: ''
     });
@@ -3403,19 +4051,34 @@ const App = {
 
     const items = tpl.items || [];
     const dayMap = {};
+    const s = App._builderState;
+
     items.forEach(item => {
       const dNum = parseInt(item.day, 10) || 1;
       if (!dayMap[dNum]) {
+        // In trip mode, preserve previously assigned field driver for this day if exists
+        const existingDay = s.days.find(d => d.day === dNum);
         dayMap[dNum] = {
           day: dNum,
           title: item.dayTitle || `Hari ${dNum} - ${tpl.name}`,
+          fieldDriverId: s.mode === 'trip' && existingDay ? existingDay.fieldDriverId : null,
+          fieldDriverName: s.mode === 'trip' && existingDay ? existingDay.fieldDriverName : null,
+          fieldDriverUnit: s.mode === 'trip' && existingDay ? existingDay.fieldDriverUnit : null,
+          fieldDriverFee: s.mode === 'trip' && existingDay ? existingDay.fieldDriverFee : 175000,
           activities: []
         };
       }
+      const aType = item.activityType || App.inferActivityType(item);
       dayMap[dNum].activities.push({
         id: 'act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
         time: item.time || '',
+        activityType: aType,
         title: item.title || '',
+        hotelName: item.hotelName || '',
+        jeepDriverId: null,
+        jeepDriverName: null,
+        jeepUnit: null,
+        jeepFee: 0,
         operationalDesc: item.operationalDesc || '',
         operationalCost: parseFloat(item.operationalCost) || 0,
         ticketCost: parseFloat(item.ticketCost) || 0,
@@ -3426,7 +4089,7 @@ const App = {
 
     let days = Object.values(dayMap);
     if (days.length === 0) {
-      days = [{ day: 1, title: 'Hari 1 - ' + tpl.name, activities: [] }];
+      days = [{ day: 1, title: 'Hari 1 - ' + tpl.name, fieldDriverId: null, fieldDriverName: null, fieldDriverUnit: null, fieldDriverFee: 0, activities: [] }];
     }
     days.sort((a, b) => a.day - b.day);
 
@@ -3453,7 +4116,7 @@ const App = {
       const nameInp = document.getElementById('builder-new-template-name');
       const tourPkg = document.getElementById('modal-builder-tour-package')?.value.trim() || '';
       if (nameInp && !nameInp.value) {
-        nameInp.value = tourPkg ? `${tourPkg} (Kustom)` : '';
+        nameInp.value = tourPkg ? `${tourPkg} (Master)` : '';
       }
     }
   },
@@ -3487,14 +4150,18 @@ const App = {
     const defaultPrice = priceInput ? (parseFloat(priceInput.value) || 0) : (s.price || 0);
     const description = descInput ? descInput.value.trim() : (s.description || '');
 
+    // Collect activities - STRICTLY EXCLUDE CREW DATA FROM TEMPLATE
     const allActivities = [];
     s.days.forEach(d => {
       d.activities.forEach(act => {
         if (act.title && act.title.trim()) {
+          const aType = act.activityType || App.inferActivityType(act);
           allActivities.push({
             id: act.id || ('stop-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)),
             day: d.day,
             dayTitle: d.title || (`Hari ${d.day}`),
+            activityType: aType,
+            hotelName: aType === 'hotel' ? (act.hotelName || '').trim() : '',
             time: act.time || '',
             title: act.title.trim(),
             operationalDesc: act.operationalDesc || '',
@@ -3531,7 +4198,7 @@ const App = {
     try {
       const res = await API.saveTemplate(payload, s.templateId || null);
       if (res.success || res.template) {
-        showToast('success', s.templateId ? 'Template Diperbarui' : 'Template Dibuat', `Template "${name}" berhasil disimpan ke Master Data.`);
+        showToast('success', s.templateId ? 'Template Diperbarui' : 'Template Dibuat', `Template "${name}" berhasil disimpan ke Master Data (bersih tanpa plotting kru).`);
         await App.loadInitialData();
         App.closeItineraryBuilderModal();
         App.openManageMasterModal('templates');
@@ -3557,19 +4224,66 @@ const App = {
     const duration = document.getElementById('modal-builder-duration')?.value.trim() || s.duration || '12 Jam';
 
     const allActivities = [];
+    let firstAssignedFieldDriver = null;
+    let totalFieldFee = 0;
+    let firstAssignedJeepDriver = null;
+    let firstJeepFee = 0;
+    let totalOps = 0, totalTickets = 0, totalHotels = 0;
+
     s.days.forEach(d => {
+      if (d.fieldDriverId) {
+        if (!firstAssignedFieldDriver) {
+          firstAssignedFieldDriver = {
+            id: d.fieldDriverId,
+            name: d.fieldDriverName,
+            unit: d.fieldDriverUnit,
+            fee: parseFloat(d.fieldDriverFee) || 0
+          };
+        }
+        totalFieldFee += (parseFloat(d.fieldDriverFee) || 0);
+      }
+
       d.activities.forEach(act => {
         if (act.title && act.title.trim()) {
+          const aType = act.activityType || App.inferActivityType(act);
+          const opCost = parseFloat(act.operationalCost) || 0;
+          const ticketCost = parseFloat(act.ticketCost) || 0;
+          const hotelCost = parseFloat(act.hotelCost) || 0;
+
+          totalOps += opCost;
+          totalTickets += ticketCost;
+          totalHotels += hotelCost;
+
+          if ((aType === 'bromo_sunrise' || aType === 'milky_way') && act.jeepDriverId && !firstAssignedJeepDriver) {
+            firstAssignedJeepDriver = {
+              id: act.jeepDriverId,
+              name: act.jeepDriverName,
+              unit: act.jeepUnit,
+              fee: parseFloat(act.jeepFee) || 0
+            };
+            firstJeepFee = parseFloat(act.jeepFee) || 0;
+          }
+
           allActivities.push({
             id: act.id || ('act-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)),
             day: d.day,
             dayTitle: d.title || (`Hari ${d.day}`),
-            time: act.time || '',
+            activityType: aType,
             title: act.title.trim(),
+            hotelName: aType === 'hotel' ? (act.hotelName || '').trim() : '',
+            dayFieldDriverId: d.fieldDriverId || null,
+            dayFieldDriverName: d.fieldDriverName || null,
+            dayFieldDriverUnit: d.fieldDriverUnit || null,
+            dayFieldDriverFee: parseFloat(d.fieldDriverFee) || 0,
+            jeepDriverId: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.jeepDriverId || null) : null,
+            jeepDriverName: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.jeepDriverName || null) : null,
+            jeepUnit: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.jeepUnit || null) : null,
+            jeepFee: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (parseFloat(act.jeepFee) || 0) : 0,
+            time: act.time || '',
             operationalDesc: act.operationalDesc || '',
-            operationalCost: parseFloat(act.operationalCost) || 0,
-            ticketCost: parseFloat(act.ticketCost) || 0,
-            hotelCost: parseFloat(act.hotelCost) || 0,
+            operationalCost: opCost,
+            ticketCost: ticketCost,
+            hotelCost: hotelCost,
             notes: act.notes || '',
             description: (act.notes ? act.notes + ' ' : '') + (act.operationalDesc ? '(' + act.operationalDesc + ')' : '')
           });
@@ -3585,48 +4299,85 @@ const App = {
     App._currentTripItinerary = allActivities;
     App._currentTripDuration = duration;
 
-    // Check save as new template in master data
+    // Sync to Trip Modal Inputs
+    const pkgInput = document.getElementById('trip-tour-package-input');
+    if (pkgInput) pkgInput.value = tourPackage;
+
+    // 1. Sync Field Driver to Trip Modal
+    if (firstAssignedFieldDriver) {
+      const fieldSelect = document.getElementById('trip-field-driver');
+      if (fieldSelect) {
+        fieldSelect.value = firstAssignedFieldDriver.id;
+      }
+      const fieldFeeInp = document.getElementById('trip-field-fee');
+      if (fieldFeeInp) {
+        fieldFeeInp.value = totalFieldFee > 0 ? totalFieldFee : firstAssignedFieldDriver.fee;
+      }
+    }
+
+    // 2. Sync Jeep Driver to Trip Modal
+    if (firstAssignedJeepDriver) {
+      const jeepSelect = document.getElementById('trip-jeep-driver');
+      if (jeepSelect) {
+        jeepSelect.value = firstAssignedJeepDriver.id;
+      }
+      const jeepFeeInp = document.getElementById('trip-jeep-fee');
+      if (jeepFeeInp) {
+        jeepFeeInp.value = firstJeepFee > 0 ? firstJeepFee : firstAssignedJeepDriver.fee;
+      }
+    }
+
+    // 3. Sync Operational Cost (Direct Cost) to Trip Modal
+    const grandCost = totalOps + totalTickets + totalHotels;
+    const opCostInput = document.getElementById('trip-operational-cost');
+    if (opCostInput && grandCost > 0) {
+      opCostInput.value = grandCost;
+    }
+
+    // Trigger update in Trip Modal (cards, badges & profit summary)
+    document.getElementById('trip-field-driver')?.dispatchEvent(new Event('change'));
+    document.getElementById('trip-jeep-driver')?.dispatchEvent(new Event('change'));
+    document.getElementById('trip-operational-cost')?.dispatchEvent(new Event('input'));
+
+    App.renderTripModalItineraryPreview();
+
+    // Check save as new template in master data (STRICTLY CLEAN WITHOUT CREW DATA)
     const saveNewTpl = document.getElementById('builder-chk-save-as-template')?.checked;
     if (saveNewTpl) {
-      const newTplName = document.getElementById('builder-new-template-name')?.value.trim() || (tourPackage + ' (Baru)');
+      const newTplName = document.getElementById('builder-new-template-name')?.value.trim() || (tourPackage + ' (Master)');
       const newCat = document.getElementById('builder-new-template-category')?.value || 'custom_trip';
       const newDesc = document.getElementById('builder-new-template-description')?.value.trim() || '';
       const defPrice = parseFloat(document.getElementById('trip-package-price')?.value) || 0;
 
-      const tplRes = await API.saveTemplate({
+      const cleanTemplateItems = allActivities.map(a => ({
+        day: a.day,
+        dayTitle: a.dayTitle,
+        activityType: a.activityType,
+        hotelName: a.hotelName,
+        time: a.time,
+        title: a.title,
+        operationalCost: a.operationalCost,
+        ticketCost: a.ticketCost,
+        hotelCost: a.hotelCost,
+        operationalDesc: a.operationalDesc,
+        notes: a.notes
+      }));
+
+      await API.saveTemplate({
         name: newTplName,
         category: newCat,
         duration: duration,
         description: newDesc,
         defaultPrice: defPrice,
-        items: allActivities
+        items: cleanTemplateItems
       });
-
-      if (tplRes.success) {
-        AppState.templates = await API.getTemplates();
-        showToast('success', 'Template Baru Disimpan', `Template "${newTplName}" berhasil didaftarkan ke Master Data.`);
-      }
+      await App.loadInitialData();
+      showToast('success', 'Tersimpan', `Itinerary diterapkan ke trip dan tersimpan sebagai template master "${newTplName}" (bersih tanpa plotting kru).`);
+    } else {
+      showToast('success', 'Itinerary Diterapkan', `Itinerary ${s.days.length} hari & plotting kru berhasil diperbarui untuk trip ini.`);
     }
 
-    // Sync tour package name to trip modal
-    const pkgInp = document.getElementById('trip-tour-package-input');
-    if (pkgInp) pkgInp.value = tourPackage;
-
-    // Calculate grand total cost and sync to operational cost
-    let grandTotal = 0;
-    allActivities.forEach(a => {
-      grandTotal += (parseFloat(a.operationalCost) || 0) + (parseFloat(a.ticketCost) || 0) + (parseFloat(a.hotelCost) || 0);
-    });
-
-    const opCostInput = document.getElementById('trip-operational-cost');
-    if (opCostInput) {
-      opCostInput.value = grandTotal;
-      opCostInput.dispatchEvent(new Event('input'));
-    }
-
-    App.renderTripModalItineraryPreview();
     App.closeItineraryBuilderModal();
-    showToast('success', 'Itinerary Diterapkan', `${s.days.length} Hari (${allActivities.length} Kegiatan) berhasil diterapkan ke perjalanan.`);
   },
 
   closeItineraryBuilderModal() {
@@ -4027,7 +4778,11 @@ const App = {
                           </div>
                           <div style="flex: 1;">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
-                              <span style="font-weight: 700; font-size: 12px; color: #0f172a;">${it.title}</span>
+                              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-weight: 700; font-size: 12px; color: #0f172a;">${it.title}</span>
+                                ${it.hotelName ? `<span class="badge" style="background: #ede9fe; color: #6d28d9; font-size: 10px; font-weight: 700;">🏨 ${it.hotelName}</span>` : ''}
+                                ${(it.activityType === 'bromo_sunrise' || (!it.activityType && /sunrise/i.test(it.title))) ? `<span class="badge" style="background: #fffbeb; color: #b45309; font-size: 10px; font-weight: 700;">🌄 Bromo Sunrise</span>` : ''}
+                              </div>
                               ${it.time ? `<span style="font-size: 10px; font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 1px 6px; border-radius: 4px;">${it.time}</span>` : ''}
                             </div>
                             ${it.notes ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">📝 ${it.notes}</div>` : ''}
