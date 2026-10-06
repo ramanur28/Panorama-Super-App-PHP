@@ -180,17 +180,17 @@ ON DUPLICATE KEY UPDATE
 -- =========================================================================
 INSERT INTO itinerary_stops (id, template_id, order_index, title, time_estimate, activity_description, operational_fee)
 VALUES
-('stop-1-1', 'tpl-1', 1, 'Penjemputan Tamu di Hotel', '00:00 - 00:30 WIB', 'Briefing rute dan pengecekan jaket tebal', 0.00),
-('stop-1-2', 'tpl-1', 2, 'Transit Pos Jeep Sukapura', '01:30 - 02:00 WIB', 'Pindah ke Armada Jeep 4x4', 50000.00),
-('stop-1-3', 'tpl-1', 3, 'Golden Sunrise Penanjakan 1', '03:30 - 06:00 WIB', 'Menikmati golden sunrise kaldera Bromo & Semeru', 120000.00),
-('stop-1-4', 'tpl-1', 4, 'Kawah Bromo & Pura Luhur Poten', '06:30 - 08:30 WIB', 'Trekking lautan pasir dan tangga kawah Bromo', 30000.00),
-('stop-1-5', 'tpl-1', 5, 'Pasir Berbisik & Savana Teletubbies', '09:00 - 10:30 WIB', 'Sesi foto dokumentasi dan santai', 50000.00),
-('stop-1-6', 'tpl-1', 6, 'Perjalanan Pulang ke Hotel Tamu', '11:00 - 12:30 WIB', 'Drop off tamu di Malang / Batu', 0.00),
-('stop-2-1', 'tpl-2', 1, 'Penjemputan Malam di Hotel', '20:30 - 21:30 WIB', 'Persiapan gear fotografi & drone malam', 0.00),
-('stop-2-2', 'tpl-2', 2, 'Hunting Milky Way Kingkong Hill', '23:00 - 03:30 WIB', 'Sesi foto bintang galaksi dengan lampu khusus', 150000.00),
-('stop-2-3', 'tpl-2', 3, 'Golden Hour Sunrise & Kawah Bromo', '04:30 - 08:30 WIB', 'Sunrise spektakuler dan pemotretan kaldera', 150000.00)
+('stop-1-1', 'tpl-1', 1, 'Penjemputan Tamu di Hotel', '00:00 - 00:30 WIB', '{"day": 1, "dayTitle": "Hari 1 - Eksplorasi Bromo", "activityType": "shuttle_transfer", "hotelName": "", "operationalDesc": "Armada shuttle / BBM", "ticketCost": 0, "hotelCost": 0, "notes": "Briefing rute dan pengecekan jaket tebal"}', 0.00),
+('stop-1-2', 'tpl-1', 2, 'Transit Pos Jeep Sukapura', '01:30 - 02:00 WIB', '{"day": 1, "dayTitle": "Hari 1 - Eksplorasi Bromo", "activityType": "shuttle_transfer", "hotelName": "", "operationalDesc": "Pindah ke Armada Jeep 4x4", "ticketCost": 0, "hotelCost": 0, "notes": "Transit di pos istirahat Sukapura"}', 50000.00),
+('stop-1-3', 'tpl-1', 3, 'Golden Sunrise Penanjakan 1', '03:30 - 06:00 WIB', '{"day": 1, "dayTitle": "Hari 1 - Eksplorasi Bromo", "activityType": "bromo_sunrise", "hotelName": "", "operationalDesc": "Sewa Jeep Hardtop 4x4", "ticketCost": 54000, "hotelCost": 0, "notes": "Menikmati golden sunrise kaldera Bromo & Semeru"}', 120000.00),
+('stop-1-4', 'tpl-1', 4, 'Kawah Bromo & Pura Luhur Poten', '06:30 - 08:30 WIB', '{"day": 1, "dayTitle": "Hari 1 - Eksplorasi Bromo", "activityType": "spot_wisata", "hotelName": "", "operationalDesc": "Guide lokal / tiket kawasan", "ticketCost": 0, "hotelCost": 0, "notes": "Trekking lautan pasir dan tangga kawah Bromo"}', 30000.00),
+('stop-1-5', 'tpl-1', 5, 'Pasir Berbisik & Savana Teletubbies', '09:00 - 10:30 WIB', '{"day": 1, "dayTitle": "Hari 1 - Eksplorasi Bromo", "activityType": "spot_wisata", "hotelName": "", "operationalDesc": "Dokumentasi spot foto", "ticketCost": 0, "hotelCost": 0, "notes": "Sesi foto dokumentasi dan santai"}', 50000.00),
+('stop-1-6', 'tpl-1', 6, 'Perjalanan Pulang ke Hotel Tamu', '11:00 - 12:30 WIB', '{"day": 1, "dayTitle": "Hari 1 - Eksplorasi Bromo", "activityType": "shuttle_transfer", "hotelName": "", "operationalDesc": "Shuttle drop off / BBM", "ticketCost": 0, "hotelCost": 0, "notes": "Drop off tamu di Malang / Batu"}', 0.00),
+('stop-2-1', 'tpl-2', 1, 'Penjemputan Malam di Hotel', '20:30 - 21:30 WIB', '{"day": 1, "dayTitle": "Hari 1 - Hunting Milky Way", "activityType": "shuttle_transfer", "hotelName": "", "operationalDesc": "Armada malam / BBM", "ticketCost": 0, "hotelCost": 0, "notes": "Persiapan gear fotografi & drone malam"}', 0.00),
+('stop-2-2', 'tpl-2', 2, 'Hunting Milky Way Kingkong Hill', '23:00 - 03:30 WIB', '{"day": 1, "dayTitle": "Hari 1 - Hunting Milky Way", "activityType": "milky_way", "hotelName": "", "operationalDesc": "Jeep 4x4 & astro lighting", "ticketCost": 54000, "hotelCost": 0, "notes": "Sesi foto bintang galaksi dengan lampu khusus"}', 150000.00),
+('stop-2-3', 'tpl-2', 3, 'Golden Hour Sunrise & Kawah Bromo', '04:30 - 08:30 WIB', '{"day": 1, "dayTitle": "Hari 1 - Hunting Milky Way", "activityType": "bromo_sunrise", "hotelName": "", "operationalDesc": "Jeep 4x4 sunrise session", "ticketCost": 0, "hotelCost": 0, "notes": "Sunrise spektakuler dan pemotretan kaldera"}', 150000.00)
 ON DUPLICATE KEY UPDATE
-  title = VALUES(title), time_estimate = VALUES(time_estimate), operational_fee = VALUES(operational_fee);
+  title = VALUES(title), time_estimate = VALUES(time_estimate), activity_description = VALUES(activity_description), operational_fee = VALUES(operational_fee);
 
 -- =========================================================================
 -- SEED DATA: TRIPS (9 Realistis Trip)
