@@ -164,13 +164,19 @@ All seed accounts come pre-configured with the default PIN: **`123456`**.
 | Username | Role | Full Name / Assigned Unit | Access Scope |
 | :--- | :--- | :--- | :--- |
 | **`admin`** | Administrator | Admin Panorama Operasional | Complete access: Dispatch, Analytics, PnL, Payroll, Agency B2B, Settings. |
-| **`budi`** | Driver Jeep | Budi Santoso (Jeep 01 Hardtop N 1045 AB) | View assigned trips, guest count, and update duty status. |
-| **`slamet`** | Driver Jeep | Pak Slamet Riyadi (Jeep 04 Hardtop N 7182 XY) | View assigned trips and update status. |
-| **`joko`** | Driver Jeep | Joko Waluyo (Jeep 12 Partner / Mitra Luar) | External partner jeep portal. |
-| **`rian`** | Driver Lapangan | Rian Hidayat (HiAce Shuttle 02 N 7788 OP) | Shuttle transfer schedules and passenger manifest. |
-| **`agus`** | Driver Lapangan | Agus Setiawan (Innova Reborn N 1122 TR) | Rental shuttle unit driver portal. |
-| **`dimas`** | Photographer | Dimas Anggara (Sony A7 IV + Lens Kit) | Documentation portal: input & share cloud album links. |
-| **`fajar`** | Photographer | Fajar Snap (Canon R6 + Drone Mini 4) | Freelance photographer portal. |
+| **`andi`** | Driver Jeep | Andi (Jeep Hardtop 4x4) | View assigned trips, guest count, and update duty status. |
+| **`sait`** | Driver Jeep | Sait (Jeep Hardtop 4x4) | View assigned trips, guest count, and update duty status. |
+| **`krisna`** | Driver Jeep | Krisna (Jeep Hardtop 4x4) | View assigned trips, guest count, and update duty status. |
+| **`andri_jeep`** | Driver Jeep | Andri (Jeep Hardtop 4x4) | View assigned trips, guest count, and update duty status. |
+| **`yoyok`** | Driver Lapangan | Yoyok (HiAce Shuttle / Innova) | Shuttle transfer schedules and passenger manifest. |
+| **`didik_driver`** | Driver Lapangan | Didik Pranoto (HiAce Shuttle / Innova) | Shuttle transfer schedules and passenger manifest. |
+| **`andri_driver`** | Driver Lapangan | Andri (HiAce Shuttle / Innova) | Shuttle transfer schedules and passenger manifest. |
+| **`kurniatrans`** | Driver Lapangan | Kurnia Trans (Armada Shuttle Kurnia Trans) | External partner shuttle portal. |
+| **`annur`** | Photographer | An-nur (Camera Kit & Dokumentasi) | Documentation portal: input & share cloud album links. |
+| **`ferdy`** | Photographer | Ferdy (Camera Kit & Dokumentasi) | Documentation portal: input & share cloud album links. |
+| **`andy`** | Photographer | Andy (Camera Kit & Dokumentasi) | Documentation portal: input & share cloud album links. |
+| **`andri_photo`** | Photographer | Andri (Camera Kit & Dokumentasi) | Documentation portal: input & share cloud album links. |
+| **`didik_photo`** | Photographer | Didik Pranoto (Camera Kit & Dokumentasi) | Documentation portal: input & share cloud album links. |
 
 ---
 

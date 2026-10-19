@@ -1040,3 +1040,11 @@ body {
   flex-direction: column;
   gap: 12px !important;
 }
+
+
+/* Currency Input Styling with Tabular Numbers */
+.currency-input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+}

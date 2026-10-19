@@ -38,6 +38,19 @@ function formatIDR(amount) {
   }).format(amount || 0);
 }
 
+function formatNumberDot(amount) {
+  if (amount === null || amount === undefined || amount === '') return '';
+  const num = Math.round(parseFloat(amount) || 0);
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function parseNumberDot(val) {
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  if (!val) return 0;
+  const clean = val.toString().replace(/[^0-9]/g, '');
+  return parseFloat(clean) || 0;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   const parts = dateStr.split('-');
@@ -146,6 +159,38 @@ function closeModal() {
 
 // Application Core
 const App = {
+  onCurrencyInput(inputEl, callback) {
+    if (!inputEl) return;
+    const oldVal = inputEl.value || '';
+    const selStart = inputEl.selectionStart;
+    const digitsBeforeCursor = (oldVal.substring(0, selStart || 0).match(/\d/g) || []).length;
+    
+    const raw = parseNumberDot(oldVal);
+    const hasDigits = oldVal.replace(/[^0-9]/g, '') !== '';
+    const newVal = hasDigits ? formatNumberDot(raw) : '';
+    inputEl.value = newVal;
+
+    if (selStart !== null && selStart !== undefined) {
+      let newCursor = 0;
+      let digitsCount = 0;
+      for (let i = 0; i < newVal.length; i++) {
+        if (/\d/.test(newVal[i])) {
+          digitsCount++;
+        }
+        if (digitsCount === digitsBeforeCursor) {
+          newCursor = i + 1;
+          break;
+        }
+      }
+      if (digitsBeforeCursor === 0) newCursor = 0;
+      if (digitsCount < digitsBeforeCursor) newCursor = newVal.length;
+      try { inputEl.setSelectionRange(newCursor, newCursor); } catch(e) {}
+    }
+
+    if (typeof callback === 'function') {
+      callback(raw);
+    }
+  },
   async init() {
     // Health check
     API.checkHealth().then(online => {
@@ -314,7 +359,7 @@ const App = {
             <div class="form-group">
               <label class="form-label" style="display: flex; justify-content: space-between;">
                 <span>Username Akun:</span>
-                <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">Contoh: admin, budi, rian, dimas</span>
+                <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">Contoh: admin, andi, yoyok, annur</span>
               </label>
               <div style="position: relative;">
                 <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #64748b;">${Icons.user(16)}</span>
@@ -2043,7 +2088,7 @@ const App = {
           ? JSON.parse(JSON.stringify(currentTpl.items)) 
           : [
               { id: 'act-1', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '02:00 WIB', title: 'Penjemputan Tamu', operationalDesc: 'Shuttle Armada', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Titik jemput hotel / meeting point' },
-              { id: 'act-2', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '04:00 WIB', title: 'Sunrise Point Penanjakan 1', operationalDesc: 'Jeep Hardtop 4x4', operationalCost: 150000, ticketCost: 35000, hotelCost: 0, notes: 'Spot view matahari terbit Bromo' },
+              { id: 'act-2', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '04:00 WIB', title: 'Sunrise Point Penanjakan 1', operationalDesc: 'Jeep Hardtop 4x4', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Spot view matahari terbit Bromo' },
               { id: 'act-3', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '06:30 WIB', title: 'Kawah Bromo & Pura Luhur Poten', operationalDesc: 'Lautan Pasir Bromo', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Eksplorasi kaldera aktif' },
               { id: 'act-4', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '08:30 WIB', title: 'Pasir Berbisik & Bukit Teletubbies', operationalDesc: 'Padang Savana', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Sesi dokumentasi foto' },
               { id: 'act-5', day: 1, dayTitle: 'Hari 1 - Tour Sunrise Bromo', time: '11:00 WIB', title: 'Drop-off Kembali', operationalDesc: 'Shuttle drop-off', operationalCost: 0, ticketCost: 0, hotelCost: 0, notes: 'Trip selesai kembali ke titik asal' }
@@ -2153,7 +2198,7 @@ const App = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label" style="font-size: 11px; font-weight: 700;">Harga Paket Jual (IDR):*</label>
-                    <input type="number" id="trip-package-price" class="form-input" value="${defaultPackagePrice}" min="0" step="50000" required />
+                    <input type="text" inputmode="numeric" id="trip-package-price" class="form-input currency-input" value="${formatNumberDot(defaultPackagePrice)}" placeholder="1.750.000" oninput="App.onCurrencyInput(this); refreshProfitPreview();" required />
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label" style="font-size: 11px; font-weight: 700;">Biaya Otomatis dari Itinerary:</label>
@@ -2176,7 +2221,7 @@ const App = {
 
                   <div class="form-group" id="group-deposit-amount" style="margin-bottom: 0; ${editTrip?.agencyPaymentStatus === 'deposit' ? '' : 'display: none;'}">
                     <label class="form-label" style="font-size: 11px;">Nominal DP Masuk (IDR):</label>
-                    <input type="number" id="trip-deposit-amount" class="form-input" min="0" step="50000" value="${editTrip?.depositAmount || 0}" placeholder="Contoh: 500000" />
+                    <input type="text" inputmode="numeric" id="trip-deposit-amount" class="form-input currency-input" value="${formatNumberDot(editTrip?.depositAmount || 0)}" placeholder="Contoh: 500.000" oninput="App.onCurrencyInput(this); refreshProfitPreview();" />
                   </div>
 
                   <div class="form-group" style="margin-bottom: 0;">
@@ -2206,7 +2251,7 @@ const App = {
       const container = document.getElementById('modal-profit-preview');
       if (!container) return;
 
-      const packagePrice = parseFloat(document.getElementById('trip-package-price')?.value) || 0;
+      const packagePrice = parseNumberDot(document.getElementById('trip-package-price')?.value) || 0;
 
       // Hitung biaya langsung dan kru dari App._currentTripItinerary
       let directCost = 0;
@@ -2215,21 +2260,21 @@ const App = {
       const seenDays = new Set();
 
       itin.forEach(item => {
-        directCost += (parseFloat(item.operationalCost) || 0) + (parseFloat(item.ticketCost) || 0) + (parseFloat(item.hotelCost) || 0);
+        directCost += (parseNumberDot(item.operationalCost) || 0) + (parseNumberDot(item.ticketCost) || 0) + (parseNumberDot(item.hotelCost) || 0);
         if (item.jeepFee) {
-          crewCost += parseFloat(item.jeepFee) || 0;
+          crewCost += parseNumberDot(item.jeepFee) || 0;
         }
         if (item.photographerFee) {
-          crewCost += parseFloat(item.photographerFee) || 0;
+          crewCost += parseNumberDot(item.photographerFee) || 0;
         }
         if (item.guideFee) {
-          crewCost += parseFloat(item.guideFee) || 0;
+          crewCost += parseNumberDot(item.guideFee) || 0;
         }
         const dNum = item.day || 1;
         if (!seenDays.has(dNum)) {
           seenDays.add(dNum);
           if (item.dayFieldDriverFee) {
-            crewCost += parseFloat(item.dayFieldDriverFee) || 0;
+            crewCost += parseNumberDot(item.dayFieldDriverFee) || 0;
           }
         }
       });
@@ -2267,7 +2312,7 @@ const App = {
         if (badgePreview) badgePreview.innerHTML = '<span class="badge pay-paid">Lunas</span>';
       } else if (payStatus === 'deposit') {
         if (depGroup) depGroup.style.display = 'block';
-        currentDeposit = parseFloat(depInput?.value) || 0;
+        currentDeposit = parseNumberDot(depInput?.value) || 0;
         const remaining = Math.max(0, packagePrice - currentDeposit);
         if (remDisplay) remDisplay.value = formatIDR(remaining);
         if (badgePreview) badgePreview.innerHTML = `<span class="badge pay-deposit">DP: ${formatIDR(currentDeposit)}</span>`;
@@ -2304,10 +2349,12 @@ const App = {
               <span style="color: #64748b;">Sisa Piutang:</span><br>
               <strong style="color: #dc2626;">${formatIDR(currentRemaining)}</strong>
             </div>
-            <div>
-              <span style="color: #64748b;">Biaya Itinerary:</span><br>
-              <strong style="color: #dc2626;">- ${formatIDR(directCost)}</strong>
-            </div>
+            ${directCost > 0 ? `
+              <div>
+                <span style="color: #64748b;">Biaya Itinerary:</span><br>
+                <strong style="color: #dc2626;">- ${formatIDR(directCost)}</strong>
+              </div>
+            ` : ''}
             <div>
               <span style="color: #64748b;">Honor Kru:</span><br>
               <strong style="color: #ea580c;">- ${formatIDR(crewCost)}</strong>
@@ -2352,7 +2399,7 @@ const App = {
       const guestCount = parseInt(document.getElementById('trip-guest-count').value, 10) || 1;
       const guestPhone = document.getElementById('trip-guest-phone')?.value.trim() || '';
       const notes = document.getElementById('trip-notes')?.value.trim() || '';
-      const packagePrice = parseFloat(document.getElementById('trip-package-price').value) || 0;
+      const packagePrice = parseNumberDot(document.getElementById('trip-package-price').value) || 0;
 
       // Collect Itinerary & Tour Package
       const itinerary = App._currentTripItinerary || [];
@@ -2459,7 +2506,7 @@ const App = {
       if (agencyPaymentStatus === 'paid') {
         depositAmount = packagePrice;
       } else if (agencyPaymentStatus === 'deposit') {
-        depositAmount = parseFloat(document.getElementById('trip-deposit-amount')?.value) || 0;
+        depositAmount = parseNumberDot(document.getElementById('trip-deposit-amount')?.value) || 0;
       } else {
         depositAmount = 0;
       }
@@ -2622,7 +2669,7 @@ const App = {
                   </div>
                   <div style="display: grid; grid-template-columns: 1fr 130px; gap: 8px;">
                     <select id="bromo-photographer" class="form-select"></select>
-                    <input type="number" id="bromo-photo-fee" class="form-input" min="0" step="10000" placeholder="Honor Foto" value="0" title="Honor Fotografer" />
+                    <input type="text" inputmode="numeric" id="bromo-photo-fee" class="form-input currency-input" placeholder="Honor Foto" value="0" title="Honor Fotografer" oninput="App.onCurrencyInput(this); refreshBromoProfitPreview();" />
                   </div>
                 </div>
 
@@ -2634,7 +2681,7 @@ const App = {
                   </div>
                   <div style="display: grid; grid-template-columns: 1fr 130px; gap: 8px;">
                     <input type="text" id="bromo-guide-name" list="bromo-guides-list" class="form-input" placeholder="Nama Tour Guide (Opsional)" />
-                    <input type="number" id="bromo-guide-fee" class="form-input" min="0" step="10000" placeholder="Honor Guide" value="0" title="Honor Tour Guide" />
+                    <input type="text" inputmode="numeric" id="bromo-guide-fee" class="form-input currency-input" placeholder="Honor Guide" value="0" title="Honor Tour Guide" oninput="App.onCurrencyInput(this); refreshBromoProfitPreview();" />
                   </div>
                   <datalist id="bromo-guides-list">
                     ${guides.map(g => `<option value="${g.name}">${g.name} (${g.phone})</option>`).join('')}
@@ -2642,15 +2689,30 @@ const App = {
                 </div>
               </div>
 
-              <!-- 5. Harga Paket & Biaya Jeep -->
+              <!-- 5. Harga Paket, Biaya Jeep & Kolom Tiket Masuk Bromo -->
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                   <label class="form-label" style="font-weight: 700; color: #0f172a;">Harga Paket Jual (IDR):*</label>
-                  <input type="number" id="bromo-package-price" class="form-input" value="${defaultPackagePrice}" min="0" step="50000" required />
+                  <input type="text" inputmode="numeric" id="bromo-package-price" class="form-input currency-input" value="${formatNumberDot(defaultPackagePrice)}" placeholder="1.750.000" oninput="App.onCurrencyInput(this); refreshBromoProfitPreview();" required />
                 </div>
                 <div class="form-group">
-                  <label class="form-label" style="font-weight: 700; color: #b45309;">Harga / Biaya Jeep (IDR):*</label>
-                  <input type="number" id="bromo-jeep-fee" class="form-input" value="${defaultJeepFee}" min="0" step="25000" required />
+                  <label class="form-label" style="font-weight: 700; color: #ea580c;">Harga / Biaya Jeep 4x4 (IDR):*</label>
+                  <input type="text" inputmode="numeric" id="bromo-jeep-fee" class="form-input currency-input" value="${formatNumberDot(defaultJeepFee)}" placeholder="650.000" oninput="App.onCurrencyInput(this); refreshBromoProfitPreview();" required />
+                </div>
+              </div>
+
+              <!-- Kolom Tiket Masuk TNBTS Bromo & Biaya Ops Tambahan -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <label class="form-label" style="font-weight: 700; color: #b45309; margin-bottom: 0;">🎟️ Harga Tiket Bromo TNBTS (IDR):*</label>
+                    <span id="bromo-ticket-calc-hint" style="font-size: 10px; color: #92400e;">(4 pax + karcis mobil)</span>
+                  </div>
+                  <input type="text" inputmode="numeric" id="bromo-ticket-cost" class="form-input currency-input" value="${formatNumberDot((54000 * 4) + 25000)}" placeholder="241.000" oninput="App.onCurrencyInput(this); this.dataset.userEdited='true'; refreshBromoProfitPreview();" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-weight: 700; color: #475569;">Biaya Ops Tambahan Bromo (IDR):</label>
+                  <input type="text" inputmode="numeric" id="bromo-extra-ops-cost" class="form-input currency-input" value="0" placeholder="0" oninput="App.onCurrencyInput(this); refreshBromoProfitPreview();" />
                 </div>
               </div>
 
@@ -2675,7 +2737,7 @@ const App = {
 
                   <div class="form-group" id="group-bromo-deposit-amount" style="margin-bottom: 0; display: none;">
                     <label class="form-label" style="font-size: 11px;">Nominal DP Masuk (IDR):</label>
-                    <input type="number" id="bromo-deposit-amount" class="form-input" min="0" step="50000" value="500000" placeholder="Contoh: 500000" />
+                    <input type="text" inputmode="numeric" id="bromo-deposit-amount" class="form-input currency-input" value="${formatNumberDot(500000)}" placeholder="Contoh: 500.000" oninput="App.onCurrencyInput(this); refreshBromoProfitPreview();" />
                   </div>
 
                   <div class="form-group" style="margin-bottom: 0;">
@@ -2741,12 +2803,14 @@ const App = {
       const container = document.getElementById('bromo-profit-preview');
       if (!container) return;
 
-      const packagePrice = parseFloat(document.getElementById('bromo-package-price')?.value) || 0;
+      const packagePrice = parseNumberDot(document.getElementById('bromo-package-price')?.value) || 0;
       const guestCount = parseInt(document.getElementById('bromo-guest-count')?.value, 10) || 4;
-      const directOpsCost = (54000 * guestCount) + 25000;
-      const jeepFee = parseFloat(document.getElementById('bromo-jeep-fee')?.value) || 0;
-      const photoFee = parseFloat(document.getElementById('bromo-photo-fee')?.value) || 0;
-      const guideFee = parseFloat(document.getElementById('bromo-guide-fee')?.value) || 0;
+      const bromoTicketCost = parseNumberDot(document.getElementById('bromo-ticket-cost')?.value) || 0;
+      const extraOpsCost = parseNumberDot(document.getElementById('bromo-extra-ops-cost')?.value) || 0;
+      const directOpsCost = bromoTicketCost + extraOpsCost;
+      const jeepFee = parseNumberDot(document.getElementById('bromo-jeep-fee')?.value) || 0;
+      const photoFee = parseNumberDot(document.getElementById('bromo-photo-fee')?.value) || 0;
+      const guideFee = parseNumberDot(document.getElementById('bromo-guide-fee')?.value) || 0;
 
       const totalCrewExpenses = jeepFee + photoFee + guideFee;
       const totalExpenses = directOpsCost + totalCrewExpenses;
@@ -2768,7 +2832,7 @@ const App = {
         if (badgePreview) badgePreview.innerHTML = '<span class="badge pay-paid">Lunas</span>';
       } else if (payStatus === 'deposit') {
         if (depGroup) depGroup.style.display = 'block';
-        currentDeposit = parseFloat(depInput?.value) || 0;
+        currentDeposit = parseNumberDot(depInput?.value) || 0;
         const remaining = Math.max(0, packagePrice - currentDeposit);
         if (remDisplay) remDisplay.value = formatIDR(remaining);
         if (badgePreview) badgePreview.innerHTML = `<span class="badge pay-deposit">DP: ${formatIDR(currentDeposit)}</span>`;
@@ -2806,12 +2870,12 @@ const App = {
               <strong style="color: #dc2626;">${formatIDR(currentRemaining)}</strong>
             </div>
             <div>
-              <span style="color: #64748b;">Tiket TNBTS & Ops:</span><br>
-              <strong style="color: #dc2626;">- ${formatIDR(directOpsCost)}</strong>
+              <span style="color: #64748b;">Tiket TNBTS Bromo:</span><br>
+              <strong style="color: #ea580c;">- ${formatIDR(bromoTicketCost)}</strong>
             </div>
             <div>
-              <span style="color: #64748b;">Biaya Jeep:</span><br>
-              <strong style="color: #ea580c;">- ${formatIDR(jeepFee)}</strong>
+              <span style="color: #64748b;">Biaya Jeep 4x4:</span><br>
+              <strong style="color: #b45309;">- ${formatIDR(jeepFee)}</strong>
             </div>
             ${photoFee > 0 ? `
               <div>
@@ -2873,8 +2937,21 @@ const App = {
       refreshBromoProfitPreview();
     });
 
+    document.getElementById('bromo-guest-count')?.addEventListener('input', (e) => {
+      const gCount = parseInt(e.target.value, 10) || 1;
+      const ticketInp = document.getElementById('bromo-ticket-cost');
+      const hint = document.getElementById('bromo-ticket-calc-hint');
+      if (ticketInp && !ticketInp.dataset.userEdited) {
+        ticketInp.value = formatNumberDot((54000 * gCount) + 25000);
+      }
+      if (hint) {
+        hint.textContent = `(${gCount} pax + karcis mobil)`;
+      }
+      refreshBromoProfitPreview();
+    });
     document.getElementById('bromo-package-price')?.addEventListener('input', refreshBromoProfitPreview);
-    document.getElementById('bromo-guest-count')?.addEventListener('input', refreshBromoProfitPreview);
+    document.getElementById('bromo-ticket-cost')?.addEventListener('input', refreshBromoProfitPreview);
+    document.getElementById('bromo-extra-ops-cost')?.addEventListener('input', refreshBromoProfitPreview);
     document.getElementById('bromo-jeep-fee')?.addEventListener('input', refreshBromoProfitPreview);
     document.getElementById('bromo-photo-fee')?.addEventListener('input', refreshBromoProfitPreview);
     document.getElementById('bromo-guide-fee')?.addEventListener('input', refreshBromoProfitPreview);
@@ -2906,8 +2983,10 @@ const App = {
       const guestPhone = document.getElementById('bromo-guest-phone')?.value.trim() || '';
       const pickupPoint = document.getElementById('bromo-pickup-point').value.trim();
       const notes = document.getElementById('bromo-notes')?.value.trim() || '';
-      const packagePrice = parseFloat(document.getElementById('bromo-package-price').value) || 0;
-      const jeepFee = parseFloat(document.getElementById('bromo-jeep-fee').value) || 0;
+      const packagePrice = parseNumberDot(document.getElementById('bromo-package-price').value) || 0;
+      const jeepFee = parseNumberDot(document.getElementById('bromo-jeep-fee').value) || 0;
+      const bromoTicketCost = parseNumberDot(document.getElementById('bromo-ticket-cost')?.value) || ((54000 * guestCount) + 25000);
+      const extraOpsCost = parseNumberDot(document.getElementById('bromo-extra-ops-cost')?.value) || 0;
 
       const jeepSelect = document.getElementById('bromo-jeep-driver');
       const jeepOption = jeepSelect ? jeepSelect.options[jeepSelect.selectedIndex] : null;
@@ -2933,7 +3012,7 @@ const App = {
       const photoOption = photoSelect && photoSelect.selectedIndex >= 0 ? photoSelect.options[photoSelect.selectedIndex] : null;
       const photographerId = photoSelect ? photoSelect.value || null : null;
       const photographerName = photographerId && photoOption ? photoOption.getAttribute('data-name') : null;
-      const photographerFee = parseFloat(document.getElementById('bromo-photo-fee')?.value) || 0;
+      const photographerFee = parseNumberDot(document.getElementById('bromo-photo-fee')?.value) || 0;
 
       if (photographerId) {
         const photoChk = App.getCrewAvailability(photographerId, date, timeSlot);
@@ -2945,7 +3024,7 @@ const App = {
       }
 
       const guideName = document.getElementById('bromo-guide-name')?.value.trim() || null;
-      const guideFee = parseFloat(document.getElementById('bromo-guide-fee')?.value) || 0;
+      const guideFee = parseNumberDot(document.getElementById('bromo-guide-fee')?.value) || 0;
 
       const agencySelect = document.getElementById('bromo-agency-id');
       const agencyOption = agencySelect ? agencySelect.options[agencySelect.selectedIndex] : null;
@@ -2957,7 +3036,7 @@ const App = {
       if (paymentStatus === 'paid') {
         depositAmount = packagePrice;
       } else if (paymentStatus === 'deposit') {
-        depositAmount = parseFloat(document.getElementById('bromo-deposit-amount')?.value) || 0;
+        depositAmount = parseNumberDot(document.getElementById('bromo-deposit-amount')?.value) || 0;
       } else {
         depositAmount = 0;
       }
@@ -2992,7 +3071,7 @@ const App = {
           jeepFee: jeepFee,
           operationalDesc: `Armada Jeep 4x4 (${jeepDriverName})`,
           operationalCost: 0,
-          ticketCost: 54000 * guestCount,
+          ticketCost: bromoTicketCost,
           hotelCost: 0,
           notes: 'Suhu dingin 5-10°C, kenakan jaket tebal.'
         },
@@ -3052,7 +3131,7 @@ const App = {
         photographerFee,
         guideName,
         guideFee,
-        operationalCost: (54000 * guestCount) + 25000,
+        operationalCost: bromoTicketCost + extraOpsCost,
         itinerary: bromoItinerary
       };
 
@@ -3114,7 +3193,7 @@ const App = {
 
     // Group by day
     const dayMap = {};
-    let totalOps = 0, totalTickets = 0, totalHotels = 0;
+    let totalOps = 0, totalTickets = 0, totalHotels = 0, totalJeep = 0, totalPhoto = 0, totalGuide = 0;
     acts.forEach(item => {
       const dNum = item.day || 1;
       if (!dayMap[dNum]) {
@@ -3127,14 +3206,17 @@ const App = {
         };
       }
       dayMap[dNum].activities.push(item);
-      totalOps += (parseFloat(item.operationalCost) || 0);
-      totalTickets += (parseFloat(item.ticketCost) || 0);
-      totalHotels += (parseFloat(item.hotelCost) || 0);
+      totalOps += (parseNumberDot(item.operationalCost) || 0);
+      totalTickets += (parseNumberDot(item.ticketCost) || 0);
+      totalHotels += (parseNumberDot(item.hotelCost) || 0);
+      totalJeep += (parseNumberDot(item.jeepFee) || 0);
+      totalPhoto += (parseNumberDot(item.photographerFee) || 0);
+      totalGuide += (parseNumberDot(item.guideFee) || 0);
     });
 
     const days = Object.values(dayMap).sort((a, b) => a.day - b.day);
     const totalDays = days.length > 0 ? days.length : 1;
-    const grandTotal = totalOps + totalTickets + totalHotels;
+    const grandTotal = totalOps + totalTickets + totalHotels + totalJeep + totalPhoto + totalGuide;
 
     if (badge) {
       badge.textContent = `${totalDays} Hari (${acts.length} Kegiatan)`;
@@ -3158,11 +3240,14 @@ const App = {
     container.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 6px;">
         <!-- Cost summary pills -->
-        <div style="display: flex; gap: 6px; font-size: 10px; flex-wrap: wrap; background: #ffffff; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-          <span style="color: #475569;">🛠️ Ops: <strong style="color: #dc2626;">${formatIDR(totalOps)}</strong></span>
-          <span style="color: #475569;">&bull; 🎟️ Tiket: <strong style="color: #ea580c;">${formatIDR(totalTickets)}</strong></span>
-          <span style="color: #475569;">&bull; 🏨 Hotel: <strong style="color: #7c3aed;">${formatIDR(totalHotels)}</strong></span>
-          <span style="margin-left: auto; color: #166534; font-weight: 800;">Total: ${formatIDR(grandTotal)}</span>
+        <div style="display: flex; gap: 8px; font-size: 10px; flex-wrap: wrap; background: #ffffff; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; align-items: center;">
+          <span style="color: #475569;">🎟️ Tiket Bromo/Wisata: <strong style="color: #ea580c;">${formatIDR(totalTickets)}</strong></span>
+          <span style="color: #475569;">&bull; 🚙 Jeep: <strong style="color: #b45309;">${formatIDR(totalJeep)}</strong></span>
+          ${totalPhoto > 0 ? `<span style="color: #475569;">&bull; 📷 Foto: <strong style="color: #6d28d9;">${formatIDR(totalPhoto)}</strong></span>` : ''}
+          ${totalGuide > 0 ? `<span style="color: #475569;">&bull; 🚩 Guide: <strong style="color: #0d9488;">${formatIDR(totalGuide)}</strong></span>` : ''}
+          <span style="color: #475569;">&bull; 🛠️ Ops: <strong style="color: #dc2626;">${formatIDR(totalOps)}</strong></span>
+          ${totalHotels > 0 ? `<span style="color: #475569;">&bull; 🏨 Hotel: <strong style="color: #7c3aed;">${formatIDR(totalHotels)}</strong></span>` : ''}
+          <span style="margin-left: auto; color: #166534; font-weight: 800;">Total Itinerary: ${formatIDR(grandTotal)}</span>
         </div>
 
         <!-- Days list preview with Daily Driver Lapangan and Spot Details -->
@@ -3206,8 +3291,8 @@ const App = {
       bgColor: '#fef3c7',
       defaultTitle: 'Golden Sunrise Bromo Penanjakan 1 (Jeep 4x4)',
       defaultOpDesc: 'Sewa Jeep Hardtop 4x4 & Driver Bromo',
-      defaultOpCost: 120000,
-      defaultTicketCost: 54000,
+      defaultOpCost: 0,
+      defaultTicketCost: 0,
       defaultHotelCost: 0,
       defaultNotes: 'Suhu dingin 5-10°C, kenakan jaket tebal. Standby jeep tepat waktu.',
       defaultTime: '03:30 - 06:00 WIB',
@@ -3256,8 +3341,8 @@ const App = {
       bgColor: '#d1fae5',
       defaultTitle: 'Kawah Bromo & Pura Luhur Poten',
       defaultOpDesc: 'Guide lokal / tiket destinasi wisata',
-      defaultOpCost: 30000,
-      defaultTicketCost: 35000,
+      defaultOpCost: 0,
+      defaultTicketCost: 0,
       defaultHotelCost: 0,
       defaultNotes: 'Dapat jalan kaki atau sewa kuda menuju tangga bibir kawah.',
       defaultTime: '06:30 - 08:30 WIB',
@@ -3281,7 +3366,7 @@ const App = {
       bgColor: '#e0f2fe',
       defaultTitle: 'Penjemputan Tamu di Meeting Point / Hotel',
       defaultOpDesc: 'Armada shuttle lokal & BBM',
-      defaultOpCost: 50000,
+      defaultOpCost: 0,
       defaultTicketCost: 0,
       defaultHotelCost: 0,
       defaultNotes: 'Driver standby 15 menit sebelum waktu penjemputan.',
@@ -3303,7 +3388,7 @@ const App = {
       bgColor: '#ffe4e6',
       defaultTitle: 'Sarapan Pagi di Resto Lokal',
       defaultOpDesc: 'Voucher makan / prasmanan lokal',
-      defaultOpCost: 45000,
+      defaultOpCost: 0,
       defaultTicketCost: 0,
       defaultHotelCost: 0,
       defaultNotes: 'Menu prasmanan khas Jawa Timur + teh/kopi hangat.',
@@ -3323,8 +3408,8 @@ const App = {
       bgColor: '#e0e7ff',
       defaultTitle: 'Hunting Milky Way Kingkong Hill & Lautan Pasir',
       defaultOpDesc: 'Jeep 4x4 & perlengkapan astro lighting',
-      defaultOpCost: 150000,
-      defaultTicketCost: 54000,
+      defaultOpCost: 0,
+      defaultTicketCost: 0,
       defaultHotelCost: 0,
       defaultNotes: 'Bawa tripod kokoh & lensa aperture lebar (f/2.8).',
       defaultTime: '23:00 - 03:00 WIB',
@@ -3413,14 +3498,20 @@ const App = {
               activityType: aType,
               title: it.title || '',
               hotelName: it.hotelName || '',
+              ticketName: it.ticketName || ((aType === 'bromo_sunrise' || aType === 'milky_way') ? 'Tiket TNBTS Bromo' : ''),
               jeepDriverId: null,
               jeepDriverName: null,
               jeepUnit: null,
-              jeepFee: 0,
+              jeepFee: parseNumberDot(it.jeepFee) || ((aType === 'bromo_sunrise' || aType === 'milky_way') ? 250000 : 0),
+              photographerId: null,
+              photographerName: null,
+              photographerFee: parseNumberDot(it.photographerFee) || 0,
+              guideName: null,
+              guideFee: parseNumberDot(it.guideFee) || 0,
               operationalDesc: it.operationalDesc || '',
-              operationalCost: parseFloat(it.operationalCost) || 0,
-              ticketCost: parseFloat(it.ticketCost) || 0,
-              hotelCost: parseFloat(it.hotelCost) || 0,
+              operationalCost: parseNumberDot(it.operationalCost) || 0,
+              ticketCost: parseNumberDot(it.ticketCost) || 0,
+              hotelCost: parseNumberDot(it.hotelCost) || 0,
               notes: it.notes || it.description || ''
             });
           });
@@ -3449,7 +3540,7 @@ const App = {
                 jeepUnit: null,
                 jeepFee: 0,
                 operationalDesc: 'Armada shuttle / BBM',
-                operationalCost: 50000,
+                operationalCost: 0,
                 ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Briefing dan cek kelengkapan barang bawaan'
@@ -3465,8 +3556,8 @@ const App = {
                 jeepUnit: null,
                 jeepFee: 0,
                 operationalDesc: 'Sewa Jeep Hardtop 4x4',
-                operationalCost: 120000,
-                ticketCost: 54000,
+                operationalCost: 0,
+                ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Suhu dingin 5-10 derajat celcius, kenakan jaket tebal'
               },
@@ -3481,7 +3572,7 @@ const App = {
                 jeepUnit: null,
                 jeepFee: 0,
                 operationalDesc: 'Guide lokal / masker',
-                operationalCost: 30000,
+                operationalCost: 0,
                 ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Jalan kaki atau sewa kuda menuju bibir kawah'
@@ -3566,7 +3657,7 @@ const App = {
                 jeepUnit: null,
                 jeepFee: 0,
                 operationalDesc: 'BBM Shuttle',
-                operationalCost: 50000,
+                operationalCost: 0,
                 ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Standby tepat waktu'
@@ -3582,8 +3673,8 @@ const App = {
                 jeepUnit: tripJeepDriver?.vehicleUnit || null,
                 jeepFee: tripJeepFee,
                 operationalDesc: 'Jeep Bromo 4x4',
-                operationalCost: 120000,
-                ticketCost: 54000,
+                operationalCost: 0,
+                ticketCost: 0,
                 hotelCost: 0,
                 notes: 'Spot golden sunrise kaldera Bromo'
               }
@@ -3670,7 +3761,7 @@ const App = {
                 </div>
                 <div>
                   <label style="font-size: 11px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 2px;">Harga Paket Acuan (IDR):*</label>
-                  <input type="number" id="modal-builder-price" class="form-input" style="font-size: 12px;" value="${s.price || 0}" min="0" step="50000" placeholder="1750000" required />
+                  <input type="text" inputmode="numeric" id="modal-builder-price" class="form-input currency-input" style="font-size: 12px;" value="${formatNumberDot(s.price || 1750000)}" placeholder="1.750.000" oninput="App.onCurrencyInput(this, v => { App._builderState.price = v; })" required />
                 </div>
               </div>
 
@@ -3742,14 +3833,18 @@ const App = {
           <div class="builder-totals-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
               <span style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase;">Estimasi Total Pengeluaran Itinerary:</span>
-              <div style="font-size: 11px; color: #4ade80; color: #15803d;">Biaya langsung seluruh spot kegiatan di rute ini</div>
+              <div style="font-size: 11px; color: #15803d;">Biaya langsung seluruh spot kegiatan, tiket bromo, dan kru di rute ini</div>
             </div>
-            <div class="builder-totals-list" style="display: flex; gap: 12px; font-size: 12px; align-items: center; flex-wrap: wrap;">
-              <div>🛠️ Ops: <strong id="builder-total-op" style="color: #dc2626;">Rp 0</strong></div>
+            <div class="builder-totals-list" style="display: flex; gap: 8px; font-size: 11px; align-items: center; flex-wrap: wrap;">
               <div>🎟️ Tiket: <strong id="builder-total-ticket" style="color: #ea580c;">Rp 0</strong></div>
-              <div>🏨 Hotel: <strong id="builder-total-hotel" style="color: #7c3aed;">Rp 0</strong></div>
+              <div>🚙 Jeep: <strong id="builder-total-jeep" style="color: #b45309;">Rp 0</strong></div>
+              <div>📷 Foto: <strong id="builder-total-photo" style="color: #7c3aed;">Rp 0</strong></div>
+              <div>🚩 Guide: <strong id="builder-total-guide" style="color: #0d9488;">Rp 0</strong></div>
+              ${!isTemplateMode ? `<div>🚐 Driver Lapangan: <strong id="builder-total-driver" style="color: #0369a1;">Rp 0</strong></div>` : ''}
+              <div>🛠️ Ops: <strong id="builder-total-op" style="color: #dc2626;">Rp 0</strong></div>
+              <div>🏨 Hotel: <strong id="builder-total-hotel" style="color: #6d28d9;">Rp 0</strong></div>
               <div class="builder-grand-total-item" style="border-left: 2px solid #86efac; padding-left: 10px;">
-                Total: <strong id="builder-grand-total" style="font-size: 15px; color: #15803d; font-weight: 800;">Rp 0</strong>
+                Total: <strong id="builder-grand-total" style="font-size: 14px; color: #15803d; font-weight: 800;">Rp 0</strong>
               </div>
             </div>
           </div>
@@ -3912,7 +4007,7 @@ const App = {
               </select>
             </div>
             <div>
-              <input type="number" class="form-input day-field-driver-fee" style="font-size: 11px;" placeholder="Tarif Driver" min="0" step="5000" value="${curDay.fieldDriverFee || 175000}" title="Tarif / Honor Driver Lapangan Hari ${curDay.day}" oninput="App.onDayFieldDriverFeeChange(${curDay.day}, this.value)" />
+              <input type="text" inputmode="numeric" class="form-input currency-input day-field-driver-fee" style="font-size: 11px;" placeholder="Tarif Driver" value="${formatNumberDot(curDay.fieldDriverFee || 175000)}" title="Tarif / Honor Driver Lapangan Hari ${curDay.day}" oninput="App.onCurrencyInput(this); App.onDayFieldDriverFeeChange(${curDay.day}, this.value)" />
             </div>
           </div>
           ${dayFieldDriverDetail}
@@ -4078,7 +4173,7 @@ const App = {
                           </select>
                         </div>
                         <div>
-                          <input type="number" class="form-input act-jeep-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="Tarif Jeep" min="0" step="5000" value="${act.jeepFee || 250000}" title="Tarif / Honor Driver Jeep" oninput="App.syncBuilderCardToState(${idx})" />
+                          <input type="text" inputmode="numeric" class="form-input currency-input act-jeep-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="250.000" value="${formatNumberDot(act.jeepFee || 250000)}" title="Tarif / Honor Driver Jeep" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                         </div>
                       </div>
                       ${jeepDetailInfo}
@@ -4105,7 +4200,7 @@ const App = {
                           </select>
                         </div>
                         <div>
-                          <input type="number" class="form-input act-photo-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="Tarif Foto" min="0" step="5000" value="${act.photographerFee || 0}" title="Tarif / Honor Fotografer" oninput="App.syncBuilderCardToState(${idx})" />
+                          <input type="text" inputmode="numeric" class="form-input currency-input act-photo-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.photographerFee || 0)}" title="Tarif / Honor Fotografer" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                         </div>
                       </div>
                       ${photoDetailInfo}
@@ -4125,15 +4220,37 @@ const App = {
                           </datalist>
                         </div>
                         <div>
-                          <input type="number" class="form-input act-guide-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="Tarif Guide" min="0" step="5000" value="${act.guideFee || 0}" title="Tarif / Honor Tour Guide" oninput="App.syncBuilderCardToState(${idx})" />
+                          <input type="text" inputmode="numeric" class="form-input currency-input act-guide-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.guideFee || 0)}" title="Tarif / Honor Tour Guide" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                         </div>
                       </div>
                       ${guideDetailInfo}
                     </div>
                   </div>
                 ` : `
-                  <div style="font-size: 10px; color: #b45309; background: #fffbeb; border: 1px dashed #fde68a; border-radius: 6px; padding: 5px 8px; display: flex; align-items: center; gap: 6px;">
-                    <span>ℹ️ <em>Template Master: Driver jeep, fotografer, dan guide di-plot saat membuat perjalanan (Trip), bukan di template master.</em></span>
+                  <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <div style="font-size: 11px; font-weight: 800; color: #b45309; display: flex; align-items: center; gap: 6px;">
+                        <span>🌋 Estimasi Biaya Kru Bromo (Master Acuan):</span>
+                      </div>
+                      <span style="font-size: 10px; color: #92400e; font-weight: 600;">Acuan Biaya Template</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+                      <div>
+                        <label style="font-size: 10px; font-weight: 700; color: #92400e; display: block; margin-bottom: 2px;">🚙 Est. Sewa Jeep 4x4 (IDR):*</label>
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-jeep-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="250.000" value="${formatNumberDot(act.jeepFee || 250000)}" title="Estimasi Sewa Jeep 4x4" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; font-weight: 700; color: #92400e; display: block; margin-bottom: 2px;">📷 Est. Fotografer (IDR):</label>
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-photo-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.photographerFee || 0)}" title="Estimasi Honor Fotografer" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; font-weight: 700; color: #92400e; display: block; margin-bottom: 2px;">🚩 Est. Tour Guide (IDR):</label>
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-guide-fee" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.guideFee || 0)}" title="Estimasi Honor Tour Guide" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
+                      </div>
+                    </div>
+                    <div style="font-size: 9px; color: #b45309; font-style: italic;">
+                      *Personil kru spesifik akan dipilih saat membuat jadwal perjalanan (Trip). Nominal ini digunakan untuk estimasi pengeluaran template.
+                    </div>
                   </div>
                 `
               ) : ''}
@@ -4145,7 +4262,7 @@ const App = {
                     <div class="builder-cost-grid" style="grid-template-columns: 1fr;">
                       <div>
                         <label style="font-size: 10px; font-weight: 700; color: #6d28d9; display: block; margin-bottom: 2px;">Biaya Hotel / Nginap (IDR):*</label>
-                        <input type="number" class="form-input act-hotel-cost" style="font-size: 11px; padding: 4px 8px; border-color: #a78bfa; font-weight: 700; color: #6d28d9; background: #faf5ff;" placeholder="0" min="0" step="10000" value="${act.hotelCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-hotel-cost" style="font-size: 11px; padding: 4px 8px; border-color: #a78bfa; font-weight: 700; color: #6d28d9; background: #faf5ff;" placeholder="0" value="${formatNumberDot(act.hotelCost || 0)}" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                       </div>
                     </div>
                   `;
@@ -4154,7 +4271,7 @@ const App = {
                     <div class="builder-cost-grid" style="grid-template-columns: 1fr;">
                       <div>
                         <label style="font-size: 10px; font-weight: 600; color: #0284c7; display: block; margin-bottom: 2px;">Biaya Operasional Shuttle / Armada (IDR):</label>
-                        <input type="number" class="form-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.operationalCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.operationalCost || 0)}" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                       </div>
                     </div>
                   `;
@@ -4163,33 +4280,41 @@ const App = {
                     <div class="builder-cost-grid" style="grid-template-columns: 1fr;">
                       <div>
                         <label style="font-size: 10px; font-weight: 600; color: #e11d48; display: block; margin-bottom: 2px;">Biaya Konsumsi / Makan / Resto (IDR):</label>
-                        <input type="number" class="form-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.operationalCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.operationalCost || 0)}" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                       </div>
                     </div>
                   `;
                 } else if (actType === 'bromo_sunrise' || actType === 'milky_way') {
                   return `
-                    <div class="builder-cost-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="builder-cost-grid" style="grid-template-columns: 1fr 140px 140px; gap: 8px;">
                       <div>
-                        <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Tiket TNBTS Bromo (IDR):</label>
-                        <input type="number" class="form-input act-ticket-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.ticketCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                        <label style="font-size: 10px; font-weight: 700; color: #ea580c; display: block; margin-bottom: 2px;">🎟️ Tiket Masuk Bromo (Keterangan / Pax):*</label>
+                        <input type="text" class="form-input act-ticket-name" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Tiket Masuk TNBTS Bromo (Domestik / 4 Pax)" value="${(act.ticketName || 'Tiket TNBTS Bromo').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
                       </div>
                       <div>
-                        <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Operasional Tambahan (IDR):</label>
-                        <input type="number" class="form-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.operationalCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                        <label style="font-size: 10px; font-weight: 700; color: #ea580c; display: block; margin-bottom: 2px;">Harga Tiket Bromo (IDR):*</label>
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-ticket-cost" style="font-size: 11px; padding: 4px 8px; font-weight: 700; color: #ea580c;" placeholder="0" value="${formatNumberDot(act.ticketCost || 0)}" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Ops Tambahan (IDR):</label>
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.operationalCost || 0)}" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                       </div>
                     </div>
                   `;
                 } else {
                   return `
-                    <div class="builder-cost-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="builder-cost-grid" style="grid-template-columns: 1fr 140px 140px; gap: 8px;">
                       <div>
-                        <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Tiket / Retribusi Wisata (IDR):</label>
-                        <input type="number" class="form-input act-ticket-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.ticketCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                        <label style="font-size: 10px; font-weight: 700; color: #ea580c; display: block; margin-bottom: 2px;">🎟️ Keterangan Tiket / Retribusi:</label>
+                        <input type="text" class="form-input act-ticket-name" style="font-size: 11px; padding: 4px 8px;" placeholder="Contoh: Tiket Retribusi Wisata" value="${(act.ticketName || '').replace(/"/g, '&quot;')}" oninput="App.syncBuilderCardToState(${idx})" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; font-weight: 700; color: #ea580c; display: block; margin-bottom: 2px;">Harga Tiket (IDR):</label>
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-ticket-cost" style="font-size: 11px; padding: 4px 8px; font-weight: 700; color: #ea580c;" placeholder="0" value="${formatNumberDot(act.ticketCost || 0)}" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                       </div>
                       <div>
                         <label style="font-size: 10px; font-weight: 600; color: #475569; display: block; margin-bottom: 2px;">Biaya Operasional (IDR):</label>
-                        <input type="number" class="form-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" min="0" step="5000" value="${act.operationalCost || 0}" oninput="App.syncBuilderCardToState(${idx})" />
+                        <input type="text" inputmode="numeric" class="form-input currency-input act-op-cost" style="font-size: 11px; padding: 4px 8px;" placeholder="0" value="${formatNumberDot(act.operationalCost || 0)}" oninput="App.onCurrencyInput(this); App.syncBuilderCardToState(${idx})" />
                       </div>
                     </div>
                   `;
@@ -4248,7 +4373,8 @@ const App = {
     const s = App._builderState;
     const curDay = s.days.find(d => d.day === dayNum);
     if (curDay) {
-      curDay.fieldDriverFee = parseFloat(fee) || 0;
+      curDay.fieldDriverFee = parseNumberDot(fee) || 0;
+      App.updateBuilderTotals();
     }
   },
 
@@ -4414,21 +4540,24 @@ const App = {
     if (card.querySelector('.act-hotel-name')) {
       curDay.activities[idx].hotelName = card.querySelector('.act-hotel-name')?.value.trim() || '';
     }
+    if (card.querySelector('.act-ticket-name')) {
+      curDay.activities[idx].ticketName = card.querySelector('.act-ticket-name')?.value.trim() || '';
+    }
     if (card.querySelector('.act-jeep-fee')) {
-      curDay.activities[idx].jeepFee = parseFloat(card.querySelector('.act-jeep-fee')?.value) || 0;
+      curDay.activities[idx].jeepFee = parseNumberDot(card.querySelector('.act-jeep-fee')?.value) || 0;
     }
     if (card.querySelector('.act-photo-fee')) {
-      curDay.activities[idx].photographerFee = parseFloat(card.querySelector('.act-photo-fee')?.value) || 0;
+      curDay.activities[idx].photographerFee = parseNumberDot(card.querySelector('.act-photo-fee')?.value) || 0;
     }
     if (card.querySelector('.act-guide-name')) {
       curDay.activities[idx].guideName = card.querySelector('.act-guide-name')?.value.trim() || '';
     }
     if (card.querySelector('.act-guide-fee')) {
-      curDay.activities[idx].guideFee = parseFloat(card.querySelector('.act-guide-fee')?.value) || 0;
+      curDay.activities[idx].guideFee = parseNumberDot(card.querySelector('.act-guide-fee')?.value) || 0;
     }
-    curDay.activities[idx].operationalCost = card.querySelector('.act-op-cost') ? (parseFloat(card.querySelector('.act-op-cost').value) || 0) : 0;
-    curDay.activities[idx].ticketCost = card.querySelector('.act-ticket-cost') ? (parseFloat(card.querySelector('.act-ticket-cost').value) || 0) : 0;
-    curDay.activities[idx].hotelCost = card.querySelector('.act-hotel-cost') ? (parseFloat(card.querySelector('.act-hotel-cost').value) || 0) : 0;
+    curDay.activities[idx].operationalCost = card.querySelector('.act-op-cost') ? (parseNumberDot(card.querySelector('.act-op-cost').value) || 0) : 0;
+    curDay.activities[idx].ticketCost = card.querySelector('.act-ticket-cost') ? (parseNumberDot(card.querySelector('.act-ticket-cost').value) || 0) : 0;
+    curDay.activities[idx].hotelCost = card.querySelector('.act-hotel-cost') ? (parseNumberDot(card.querySelector('.act-hotel-cost').value) || 0) : 0;
     curDay.activities[idx].operationalDesc = card.querySelector('.act-op-desc')?.value.trim() || '';
     curDay.activities[idx].notes = card.querySelector('.act-notes')?.value.trim() || '';
 
@@ -4463,8 +4592,8 @@ const App = {
           jeepUnit: null,
           jeepFee: 0,
           operationalDesc: '',
-          operationalCost: 30000,
-          ticketCost: 35000,
+          operationalCost: 0,
+          ticketCost: 0,
           hotelCost: 0,
           notes: ''
         }
@@ -4527,8 +4656,8 @@ const App = {
       jeepUnit: null,
       jeepFee: 0,
       operationalDesc: '',
-      operationalCost: 30000,
-      ticketCost: 35000,
+      operationalCost: 0,
+      ticketCost: 0,
       hotelCost: 0,
       notes: ''
     });
@@ -4549,29 +4678,43 @@ const App = {
 
   updateBuilderTotals() {
     const s = App._builderState;
-    let totalOp = 0, totalTicket = 0, totalHotel = 0;
+    let totalOp = 0, totalTicket = 0, totalHotel = 0, totalJeep = 0, totalPhoto = 0, totalGuide = 0, totalDriver = 0;
 
     s.days.forEach(d => {
+      if (s.mode === 'trip' && d.fieldDriverFee) {
+        totalDriver += (parseNumberDot(d.fieldDriverFee) || 0);
+      }
       d.activities.forEach(a => {
-        totalOp += parseFloat(a.operationalCost) || 0;
-        totalTicket += parseFloat(a.ticketCost) || 0;
-        totalHotel += parseFloat(a.hotelCost) || 0;
+        totalOp += (parseNumberDot(a.operationalCost) || 0);
+        totalTicket += (parseNumberDot(a.ticketCost) || 0);
+        totalHotel += (parseNumberDot(a.hotelCost) || 0);
+        totalJeep += (parseNumberDot(a.jeepFee) || 0);
+        totalPhoto += (parseNumberDot(a.photographerFee) || 0);
+        totalGuide += (parseNumberDot(a.guideFee) || 0);
       });
     });
 
-    const grandTotal = totalOp + totalTicket + totalHotel;
+    const grandTotal = totalOp + totalTicket + totalHotel + totalJeep + totalPhoto + totalGuide + totalDriver;
 
     const opEl = document.getElementById('builder-total-op');
     const ticketEl = document.getElementById('builder-total-ticket');
     const hotelEl = document.getElementById('builder-total-hotel');
+    const jeepEl = document.getElementById('builder-total-jeep');
+    const photoEl = document.getElementById('builder-total-photo');
+    const guideEl = document.getElementById('builder-total-guide');
+    const driverEl = document.getElementById('builder-total-driver');
     const grandEl = document.getElementById('builder-grand-total');
 
     if (opEl) opEl.textContent = formatIDR(totalOp);
     if (ticketEl) ticketEl.textContent = formatIDR(totalTicket);
     if (hotelEl) hotelEl.textContent = formatIDR(totalHotel);
+    if (jeepEl) jeepEl.textContent = formatIDR(totalJeep);
+    if (photoEl) photoEl.textContent = formatIDR(totalPhoto);
+    if (guideEl) guideEl.textContent = formatIDR(totalGuide);
+    if (driverEl) driverEl.textContent = formatIDR(totalDriver);
     if (grandEl) grandEl.textContent = formatIDR(grandTotal);
 
-    return { totalOp, totalTicket, totalHotel, grandTotal };
+    return { totalOp, totalTicket, totalHotel, totalJeep, totalPhoto, totalGuide, totalDriver, grandTotal };
   },
 
   applyPresetToBuilder(tplId) {
@@ -4605,14 +4748,20 @@ const App = {
         activityType: aType,
         title: item.title || '',
         hotelName: item.hotelName || '',
+        ticketName: item.ticketName || ((aType === 'bromo_sunrise' || aType === 'milky_way') ? 'Tiket TNBTS Bromo' : ''),
         jeepDriverId: null,
         jeepDriverName: null,
         jeepUnit: null,
-        jeepFee: 0,
+        jeepFee: parseNumberDot(item.jeepFee) || ((aType === 'bromo_sunrise' || aType === 'milky_way') ? 250000 : 0),
+        photographerId: null,
+        photographerName: null,
+        photographerFee: parseNumberDot(item.photographerFee) || 0,
+        guideName: null,
+        guideFee: parseNumberDot(item.guideFee) || 0,
         operationalDesc: item.operationalDesc || '',
-        operationalCost: parseFloat(item.operationalCost) || 0,
-        ticketCost: parseFloat(item.ticketCost) || 0,
-        hotelCost: parseFloat(item.hotelCost) || 0,
+        operationalCost: parseNumberDot(item.operationalCost) || 0,
+        ticketCost: parseNumberDot(item.ticketCost) || 0,
+        hotelCost: parseNumberDot(item.hotelCost) || 0,
         notes: item.notes || item.description || ''
       });
     });
@@ -4677,7 +4826,7 @@ const App = {
 
     const category = catInput ? catInput.value : (s.category || 'bromo_sunrise');
     const duration = durInput ? durInput.value.trim() : (s.duration || '12 Jam');
-    const defaultPrice = priceInput ? (parseFloat(priceInput.value) || 0) : (s.price || 0);
+    const defaultPrice = priceInput ? (parseNumberDot(priceInput.value) || 0) : (s.price || 0);
     const description = descInput ? descInput.value.trim() : (s.description || '');
 
     // Collect activities - STRICTLY EXCLUDE CREW DATA FROM TEMPLATE
@@ -4692,12 +4841,16 @@ const App = {
             dayTitle: d.title || (`Hari ${d.day}`),
             activityType: aType,
             hotelName: aType === 'hotel' ? (act.hotelName || '').trim() : '',
+            ticketName: (act.ticketName || '').trim(),
             time: act.time || '',
             title: act.title.trim(),
             operationalDesc: act.operationalDesc || '',
-            operationalCost: parseFloat(act.operationalCost) || 0,
-            ticketCost: parseFloat(act.ticketCost) || 0,
-            hotelCost: parseFloat(act.hotelCost) || 0,
+            operationalCost: parseNumberDot(act.operationalCost) || 0,
+            ticketCost: parseNumberDot(act.ticketCost) || 0,
+            hotelCost: parseNumberDot(act.hotelCost) || 0,
+            jeepFee: parseNumberDot(act.jeepFee) || 0,
+            photographerFee: parseNumberDot(act.photographerFee) || 0,
+            guideFee: parseNumberDot(act.guideFee) || 0,
             notes: act.notes || '',
             description: (act.notes ? act.notes + ' ' : '') + (act.operationalDesc ? '(' + act.operationalDesc + ')' : '')
           });
@@ -4758,7 +4911,7 @@ const App = {
     let totalFieldFee = 0;
     let firstAssignedJeepDriver = null;
     let firstJeepFee = 0;
-    let totalOps = 0, totalTickets = 0, totalHotels = 0;
+    let totalOps = 0, totalTickets = 0, totalHotels = 0, totalJeep = 0, totalPhoto = 0, totalGuide = 0;
 
     s.days.forEach(d => {
       if (d.fieldDriverId) {
@@ -4767,31 +4920,37 @@ const App = {
             id: d.fieldDriverId,
             name: d.fieldDriverName,
             unit: d.fieldDriverUnit,
-            fee: parseFloat(d.fieldDriverFee) || 0
+            fee: parseNumberDot(d.fieldDriverFee) || 0
           };
         }
-        totalFieldFee += (parseFloat(d.fieldDriverFee) || 0);
+        totalFieldFee += (parseNumberDot(d.fieldDriverFee) || 0);
       }
 
       d.activities.forEach(act => {
         if (act.title && act.title.trim()) {
           const aType = act.activityType || App.inferActivityType(act);
-          const opCost = parseFloat(act.operationalCost) || 0;
-          const ticketCost = parseFloat(act.ticketCost) || 0;
-          const hotelCost = parseFloat(act.hotelCost) || 0;
+          const opCost = parseNumberDot(act.operationalCost) || 0;
+          const ticketCost = parseNumberDot(act.ticketCost) || 0;
+          const hotelCost = parseNumberDot(act.hotelCost) || 0;
+          const jFee = parseNumberDot(act.jeepFee) || 0;
+          const pFee = parseNumberDot(act.photographerFee) || 0;
+          const gFee = parseNumberDot(act.guideFee) || 0;
 
           totalOps += opCost;
           totalTickets += ticketCost;
           totalHotels += hotelCost;
+          totalJeep += jFee;
+          totalPhoto += pFee;
+          totalGuide += gFee;
 
           if ((aType === 'bromo_sunrise' || aType === 'milky_way') && act.jeepDriverId && !firstAssignedJeepDriver) {
             firstAssignedJeepDriver = {
               id: act.jeepDriverId,
               name: act.jeepDriverName,
               unit: act.jeepUnit,
-              fee: parseFloat(act.jeepFee) || 0
+              fee: jFee
             };
-            firstJeepFee = parseFloat(act.jeepFee) || 0;
+            firstJeepFee = jFee;
           }
 
           allActivities.push({
@@ -4801,19 +4960,20 @@ const App = {
             activityType: aType,
             title: act.title.trim(),
             hotelName: aType === 'hotel' ? (act.hotelName || '').trim() : '',
+            ticketName: (act.ticketName || '').trim(),
             dayFieldDriverId: d.fieldDriverId || null,
             dayFieldDriverName: d.fieldDriverName || null,
             dayFieldDriverUnit: d.fieldDriverUnit || null,
-            dayFieldDriverFee: parseFloat(d.fieldDriverFee) || 0,
+            dayFieldDriverFee: parseNumberDot(d.fieldDriverFee) || 0,
             jeepDriverId: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.jeepDriverId || null) : null,
             jeepDriverName: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.jeepDriverName || null) : null,
             jeepUnit: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.jeepUnit || null) : null,
-            jeepFee: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (parseFloat(act.jeepFee) || 0) : 0,
-            photographerId: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.photographerId || null) : (act.photographerId || null),
-            photographerName: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.photographerName || null) : (act.photographerName || null),
-            photographerFee: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (parseFloat(act.photographerFee) || 0) : (parseFloat(act.photographerFee) || 0),
-            guideName: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (act.guideName || null) : (act.guideName || null),
-            guideFee: (aType === 'bromo_sunrise' || aType === 'milky_way') ? (parseFloat(act.guideFee) || 0) : (parseFloat(act.guideFee) || 0),
+            jeepFee: jFee,
+            photographerId: act.photographerId || null,
+            photographerName: act.photographerName || null,
+            photographerFee: pFee,
+            guideName: act.guideName || null,
+            guideFee: gFee,
             time: act.time || '',
             operationalDesc: act.operationalDesc || '',
             operationalCost: opCost,
@@ -4889,11 +5049,15 @@ const App = {
         dayTitle: a.dayTitle,
         activityType: a.activityType,
         hotelName: a.hotelName,
+        ticketName: a.ticketName,
         time: a.time,
         title: a.title,
         operationalCost: a.operationalCost,
         ticketCost: a.ticketCost,
         hotelCost: a.hotelCost,
+        jeepFee: a.jeepFee,
+        photographerFee: a.photographerFee,
+        guideFee: a.guideFee,
         operationalDesc: a.operationalDesc,
         notes: a.notes
       }));

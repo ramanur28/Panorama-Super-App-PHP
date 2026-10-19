@@ -77,12 +77,19 @@ Aplikasi sudah disiapkan dengan akun operasional siap pakai (PIN Default: **`123
 | Username | Peran (Role) | Keterangan Akses |
 |---|---|---|
 | **`admin`** | **Administrator** | Hak akses penuh: Manajemen Trip, Kru, PnL Keuangan, Tagihan Agen, Cetak Invoice, Payroll |
-| **`budi`** | **Driver Jeep** | Portal Armada Jeep (Jadwal Bromo, titik jemput, kontak WA tamu, rekap honor) |
-| **`slamet`** | **Driver Jeep** | Armada Jeep 04 (Hardtop N 7182 XY) |
-| **`rian`** | **Driver Lapangan** | Portal Shuttle Penjemputan (HiAce Shuttle N 7788 OP, kontak tamu) |
-| **`agus`** | **Driver Lapangan** | Shuttle Sewa (Innova Reborn N 1122 TR) |
-| **`dimas`** | **Fotografer** | Portal Dokumentasi (Input & simpan tautan Google Drive / Cloud album foto) |
-| **`fajar`** | **Fotografer** | Fotografer Dokumentasi Freelance |
+| **`andi`** | **Driver Jeep** | Portal Armada Jeep (Andi - Jeep Hardtop 4x4) |
+| **`sait`** | **Driver Jeep** | Portal Armada Jeep (Sait - Jeep Hardtop 4x4) |
+| **`krisna`** | **Driver Jeep** | Portal Armada Jeep (Krisna - Jeep Hardtop 4x4) |
+| **`andri_jeep`** | **Driver Jeep** | Portal Armada Jeep (Andri - Jeep Hardtop 4x4) |
+| **`yoyok`** | **Driver Lapangan** | Portal Shuttle Penjemputan (Yoyok - HiAce Shuttle / Innova) |
+| **`didik_driver`** | **Driver Lapangan** | Portal Shuttle Penjemputan (Didik Pranoto) |
+| **`andri_driver`** | **Driver Lapangan** | Portal Shuttle Penjemputan (Andri) |
+| **`kurniatrans`** | **Driver Lapangan** | Shuttle Sewa Eksternal (Kurnia Trans) |
+| **`annur`** | **Fotografer** | Portal Dokumentasi (An-nur - Google Drive / Cloud album foto) |
+| **`ferdy`** | **Fotografer** | Portal Dokumentasi (Ferdy) |
+| **`andy`** | **Fotografer** | Portal Dokumentasi (Andy) |
+| **`andri_photo`** | **Fotografer** | Portal Dokumentasi (Andri) |
+| **`didik_photo`** | **Fotografer** | Portal Dokumentasi (Didik Pranoto) |
 
 ---
 

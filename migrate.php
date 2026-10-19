@@ -59,6 +59,10 @@ if ($action === 'run' && $testPdo) {
 
             // Auto-sync driver lapangan & fotografer kru operasional
             $crewSeeds = [
+                ['w-jeep-andi', 'andi', 'andi@panoramatour.com', '0823-7701-3001', '123456', 'Andi', 'driver_jeep', 'internal', 'Jeep Hardtop 4x4', 250000.00],
+                ['w-jeep-sait', 'sait', 'sait@panoramatour.com', '0823-7701-3002', '123456', 'Sait', 'driver_jeep', 'internal', 'Jeep Hardtop 4x4', 250000.00],
+                ['w-jeep-krisna', 'krisna', 'krisna@panoramatour.com', '0823-7701-3003', '123456', 'Krisna', 'driver_jeep', 'internal', 'Jeep Hardtop 4x4', 250000.00],
+                ['w-jeep-andri', 'andri_jeep', 'andri.jeep@panoramatour.com', '0823-7701-3004', '123456', 'Andri', 'driver_jeep', 'internal', 'Jeep Hardtop 4x4', 250000.00],
                 ['w-field-yoyok', 'yoyok', 'yoyok@panoramatour.com', '0821-5501-1001', '123456', 'Yoyok', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', 175000.00],
                 ['w-field-didik', 'didik_driver', 'didik.driver@panoramatour.com', '0821-5501-1002', '123456', 'Didik Pranoto', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', 175000.00],
                 ['w-field-andri', 'andri_driver', 'andri.driver@panoramatour.com', '0821-5501-1003', '123456', 'Andri', 'driver_lapangan', 'internal', 'HiAce Shuttle / Innova', 175000.00],
@@ -80,7 +84,7 @@ if ($action === 'run' && $testPdo) {
             foreach ($crewSeeds as $cs) {
                 $stmtCrew->execute($cs);
             }
-            $messages[] = "Data kru operasional (Driver Lapangan & Fotografer) berhasil disinkronkan.";
+            $messages[] = "Data kru operasional (Driver Jeep, Driver Lapangan & Fotografer) berhasil disinkronkan.";
 
             // Auto-cleanup legacy dummy seed data (dummy trips, dummy agencies, dummy users)
             $testPdo->exec("DELETE FROM trips WHERE id IN ('trip-1', 'trip-2', 'trip-3', 'trip-4', 'trip-5', 'trip-6', 'trip-7', 'trip-8', 'trip-9') OR id LIKE 'trip-1791%'");
@@ -298,6 +302,7 @@ if ($action === 'run' && $testPdo) {
       <div style="font-weight: 700; margin-bottom: 6px; color: #0f172a;">Akun Demo Tersedia (PIN Default: <strong>123456</strong>):</div>
       <ul>
         <li><strong>admin</strong> &bull; Administrator (Manajemen Trip, Kru, PnL, Payroll, Tagihan)</li>
+        <li><strong>andi</strong> / <strong>sait</strong> / <strong>krisna</strong> / <strong>andri_jeep</strong> &bull; Driver Jeep (Armada 4x4)</li>
         <li><strong>yoyok</strong> / <strong>didik_driver</strong> / <strong>andri_driver</strong> &bull; Driver Lapangan / Shuttle</li>
         <li><strong>annur</strong> / <strong>ferdy</strong> / <strong>andy</strong> &bull; Fotografer Dokumentasi</li>
       </ul>

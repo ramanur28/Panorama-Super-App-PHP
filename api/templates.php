@@ -35,8 +35,12 @@ function parse_stop_row(array $s): array {
         'location' => $extra['location'] ?? 'Spot Wisata Bromo',
         'operationalDesc' => $extra['operationalDesc'] ?? '',
         'operationalCost' => (float)$s['operational_fee'],
+        'ticketName' => $extra['ticketName'] ?? '',
         'ticketCost' => (float)($extra['ticketCost'] ?? 0),
         'hotelCost' => (float)($extra['hotelCost'] ?? 0),
+        'jeepFee' => (float)($extra['jeepFee'] ?? 0),
+        'photographerFee' => (float)($extra['photographerFee'] ?? 0),
+        'guideFee' => (float)($extra['guideFee'] ?? 0),
         'notes' => $extra['notes'] ?? (!empty($extra) ? '' : $desc),
         'description' => $desc
     ];
@@ -139,8 +143,12 @@ if ($method === 'POST' && empty($action) && empty($templateId)) {
                     'activityType' => trim($item['activityType'] ?? 'spot_wisata'),
                     'hotelName' => trim($item['hotelName'] ?? ''),
                     'operationalDesc' => trim($item['operationalDesc'] ?? ''),
+                    'ticketName' => trim($item['ticketName'] ?? ''),
                     'ticketCost' => (float)($item['ticketCost'] ?? 0),
                     'hotelCost' => (float)($item['hotelCost'] ?? 0),
+                    'jeepFee' => (float)($item['jeepFee'] ?? 0),
+                    'photographerFee' => (float)($item['photographerFee'] ?? 0),
+                    'guideFee' => (float)($item['guideFee'] ?? 0),
                     'notes' => trim($item['notes'] ?? $item['description'] ?? '')
                 ];
                 $stopDesc = json_encode($extraData, JSON_UNESCAPED_UNICODE);
@@ -214,8 +222,12 @@ if ($method === 'PUT' || ($method === 'POST' && $action === 'update')) {
                     'activityType' => trim($item['activityType'] ?? 'spot_wisata'),
                     'hotelName' => trim($item['hotelName'] ?? ''),
                     'operationalDesc' => trim($item['operationalDesc'] ?? ''),
+                    'ticketName' => trim($item['ticketName'] ?? ''),
                     'ticketCost' => (float)($item['ticketCost'] ?? 0),
                     'hotelCost' => (float)($item['hotelCost'] ?? 0),
+                    'jeepFee' => (float)($item['jeepFee'] ?? 0),
+                    'photographerFee' => (float)($item['photographerFee'] ?? 0),
+                    'guideFee' => (float)($item['guideFee'] ?? 0),
                     'notes' => trim($item['notes'] ?? $item['description'] ?? '')
                 ];
                 $stopDesc = json_encode($extraData, JSON_UNESCAPED_UNICODE);
